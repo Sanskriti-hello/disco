@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Browser Dashboard",
+  "version": "1.0",
+  "description": "AI powered browser dashboard with tab clustering",
+  "chrome_url_overrides": {
+    "newtab": "dist/newtab.html"
+  },
+  "permissions": [
+    "tabs",
+    "scripting",
+    "activeTab",
+    "history",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "content_extractor.js"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
+}
