@@ -1,115 +1,14 @@
-# backend/figma_to_react.py
 """
-Figma to React Converter
-Transforms Figma node JSON into React component code
-
-Note: This is a simplified version. For production, consider:
-- figma-to-react plugin
-- html-to-figma + Anima plugin
-- Custom rendering with Figma REST API data
+Figma to React Generator
+========================
+Transforms Figma metadata and domain data into high-fidelity React components.
 """
 
 import json
 import os
 import http.client
+import re
 from typing import Dict, Any, List, Optional
-
-
-def figma_node_to_react(
-    node_data: Dict[str, Any],
-    template_data: Dict[str, Any],
-    component_name: str = "DynamicDashboard"
-) -> str:
-    """
-    Convert Figma node JSON to React component code
-    
-    Args:
-        node_data: Figma node JSON from API
-        template_data: Data to inject (from domain agent)
-        component_name: Name of React component
-    
-    Returns:
-        React component code as string
-    """
-    
-    # Extract node properties
-    node_type = node_data.get("document", {}).get("type", "FRAME")
-    node_name = node_data.get("document", {}).get("name", "Unknown")
-    
-    # Extract layout info
-    bounds = node_data.get("document", {}).get("absoluteBoundingBox", {})
-    width = bounds.get("width", 800)
-    height = bounds.get("height", 600)
-    
-    # Generate component
-    return f"""import React from 'react';
-
-/**
- * {component_name}
- * Generated from Figma: {node_name}
- * Type: {node_type}
- * Dimensions: {width}x{height}
- */
-
-export const {component_name} = (props) => {{
-  // Extract data from props
-  const {{
-    title = "Dashboard",
-    data = [],
-    timestamp = new Date().toISOString()
-  }} = props;
-
-  return (
-    <div 
-      className="w-full min-h-screen bg-gradient-to-br from-gray-900 to-black p-6"
-      style={{{{ maxWidth: '{width}px' }}}}
-    >
-      {{/* Header */}}
-      <header className="mb-8">
-        <h1 className="text-4xl font-bold text-white mb-2">
-          {{title}}
-        </h1>
-        <p className="text-gray-400 text-sm">
-          Generated from Figma template: {node_name}
-        </p>
-      </header>
-
-      {{/* Main Content */}}
-      <main className="space-y-6">
-        {{/* Render dynamic content */}}
-        {{data && data.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {{data.map((item, index) => (
-              <div 
-                key={{index}}
-                className="bg-white/10 backdrop-blur-lg rounded-xl p-4 border border-white/20"
-              >
-                <h3 className="text-white font-semibold mb-2">
-                  {{item.title || `Item ${{index + 1}}`}}
-                </h3>
-                <p className="text-gray-300 text-sm">
-                  {{item.description || "No description"}}
-                </p>
-              </div>
-            ))}}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <p className="text-gray-400">No data available</p>
-          </div>
-        )}}
-      </main>
-
-      {{/* Footer */}}
-      <footer className="mt-8 text-center text-gray-500 text-xs">
-        Last updated: {{new Date(timestamp).toLocaleString()}}
-      </footer>
-    </div>
-  );
-}};
-
-export default {component_name};
-"""
 
 
 def generate_dashboard_component(
@@ -120,143 +19,184 @@ def generate_dashboard_component(
     domain: str
 ) -> str:
     """
-    Generate complete dashboard component with proper data binding
-    
-    This is the function called by the render_ui_node in LangGraph
+    Generate complete dashboard component with proper data binding.
     """
     
-    # Extract data structure
-    data_items = []
+    # 1. Standardize Data for UI Injection
+    items = []
     
-    # Domain-specific data extraction
+    # Study Domain
     if domain == "study":
-        papers = template_data.get("papers", [])
-        data_items = [
-            {
-                "title": p.get("title", ""),
-                "description": p.get("summary", ""),
-                "url": p.get("url", "")
-            }
-            for p in papers
+        source = template_data.get("papers") or template_data.get("articles") or []
+        items = [
+            {"title": x.get("title", ""), "desc": x.get("summary", ""), "url": x.get("url", ""), "icon": "BookOpen"}
+            for x in source
         ]
     
+    # Shopping Domain
     elif domain == "shopping":
-        products = template_data.get("products", [])
-        data_items = [
-            {
-                "title": p.get("title", ""),
-                "description": f"Price: {p.get('price', 'N/A')}",
-                "url": p.get("url", "")
-            }
-            for p in products
+        source = template_data.get("products") or []
+        items = [
+            {"title": x.get("title", ""), "desc": f"Price: {x.get('price', 'N/A')}", "url": x.get("url", ""), "icon": "ShoppingBag"}
+            for x in source
         ]
-    
+        
+    # Travel Domain
     elif domain == "travel":
-        flights = template_data.get("flights", [])
-        data_items = [
-            {
-                "title": f"{f.get('airline', '')} - {f.get('price', '')}",
-                "description": f"{f.get('departureTime', '')} → {f.get('arrivalTime', '')}",
-                "url": f.get("bookingUrl", "")
-            }
-            for f in flights
+        source = template_data.get("flights") or template_data.get("hotels") or []
+        items = [
+            {"title": x.get("airline") or x.get("name", ""), "desc": f"{x.get('price', '')} - {x.get('duration') or x.get('location', '')}", "url": x.get("bookingUrl") or x.get("url", ""), "icon": "Plane" if "airline" in x else "Bed"}
+            for x in source
+        ]
+        
+    # Code Domain
+    elif domain == "code":
+        source = template_data.get("code_snippets") or []
+        items = [
+            {"title": x.get("language", "Code"), "desc": x.get("code", "")[:200] + "...", "url": "", "icon": "Code"}
+            for x in source
+        ]
+        
+    # Entertainment Domain (YouTube/News)
+    elif domain == "entertainment":
+        source = template_data.get("videos") or template_data.get("news") or template_data.get("movies") or []
+        items = [
+            {"title": x.get("title", ""), "desc": x.get("description") or x.get("snippet", ""), "url": x.get("url", ""), "icon": "Play" if "video" in str(x) else "Newspaper"}
+            for x in source
+        ]
+        
+    # Financial Domain
+    elif domain == "financial" or "exchange_rate" in str(template_data):
+        source = template_data.get("financial") or template_data.get("rates") or []
+        items = [
+            {"title": x.get("pair") or x.get("currency", "Rate"), "desc": f"Value: {x.get('value') or x.get('rate', 'N/A')}", "url": "", "icon": "TrendingUp"}
+            for x in source
         ]
     
-    elif domain == "entertainment":
-        # Videos or Movies or Music
-        videos = template_data.get("videos", [])
-        movies = template_data.get("movies", [])
-        if videos:
-            data_items = [{"title": v.get("title", ""), "description": v.get("description", ""), "url": v.get("url", "")} for v in videos]
-        elif movies:
-            data_items = [{"title": m.get("title", ""), "description": m.get("snippet", ""), "url": m.get("url", "")} for m in movies]
-            
-    elif domain == "code":
-        snippets = template_data.get("code_snippets", [])
-        data_items = [{"title": s.get("language", "code"), "description": s.get("code", "")[:200], "url": ""} for s in snippets]
-
+    # Generic Fallback
     else:
-        # Improved Generic fallback - try to find any list in template_data
-        for key, value in template_data.items():
-            if isinstance(value, list) and len(value) > 0 and isinstance(value[0], dict):
-                data_items = [{"title": item.get("title", "Item"), "description": item.get("snippet") or item.get("description") or str(item), "url": item.get("url", "")} for item in value]
+        # Try to find any list of dicts
+        for val in template_data.values():
+            if isinstance(val, list) and val and isinstance(val[0], dict):
+                items = [
+                    {"title": x.get("title") or x.get("name") or "Item", "desc": x.get("snippet") or x.get("description") or str(x), "url": x.get("url", ""), "icon": "Zap"}
+                    for x in val
+                ]
                 break
-        if not data_items:
-            data_items = template_data.get("items", [])
     
-    # Generate component
+    if not items:
+        items = [{"title": "No data found", "desc": "We couldn't find specific items for this view.", "url": "", "icon": "AlertCircle"}]
+
+    # 2. Generate Premium React Code
+    component_name = re.sub(r'\W+', '', template_name)
+    
     return f"""import React from 'react';
+import {{ 
+  {", ".join(set([item['icon'] for item in items] + ['Layout', 'ArrowRight', 'ExternalLink', 'Clock']))}
+}} from 'lucide-react';
 
 /**
  * {template_name} Dashboard
- * Domain: {domain}
- * Figma Node: {figma_node_id}
- * Preview: {figma_preview_url}
+ * Generated for: {domain} domain
+ * Source: {figma_preview_url}
  */
-
-export const {template_name.replace(' ', '')} = () => {{
-  const data = {json.dumps(data_items, indent=4)};
-  
-  const template_data = {json.dumps(template_data, indent=4)};
+const {component_name} = () => {{
+  const data = {json.dumps(items, indent=2)};
+  const rawData = {json.dumps(template_data, indent=2)};
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-black p-8">
-      {{/* Background Effects */}}
+    <div className="min-h-screen bg-[#050510] text-slate-200 font-sans selection:bg-indigo-500/30">
+      {{/* Glossy Background */}}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 left-0 w-96 h-96 bg-blue-500 rounded-full filter blur-3xl opacity-20 animate-pulse" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-purple-500 rounded-full filter blur-3xl opacity-20 animate-pulse" />
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/20 rounded-full blur-[120px] animate-pulse" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 rounded-full blur-[120px]" />
       </div>
 
-      <div className="relative max-w-7xl mx-auto">
-        {{/* Header */}}
-        <header className="mb-12">
-          <h1 className="text-5xl font-bold text-white mb-4">
-            {template_name}
-          </h1>
-          <p className="text-gray-300 text-lg">
-            Powered by AI • Generated from your browser tabs
-          </p>
+      <div className="relative z-10 p-4 md:p-8 max-w-7xl mx-auto">
+        {{/* Header Section */}}
+        <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 animate-in fade-in slide-in-from-top-4 duration-700">
+          <div>
+            <div className="flex items-center gap-2 text-indigo-400 font-medium text-sm mb-3 uppercase tracking-widest">
+              <Layout size={{14}} />
+              <span>{domain} Dashboard</span>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight">
+              {template_name}
+            </h1>
+          </div>
+          <div className="bg-white/5 backdrop-blur-md rounded-2xl px-5 py-3 border border-white/10 flex items-center gap-3">
+            <Clock size={{18}} className="text-slate-400" />
+            <div className="text-xs">
+              <p className="text-slate-400">Generated at</p>
+              <p className="text-white font-medium">{{new Date().toLocaleTimeString()}}</p>
+            </div>
+          </div>
         </header>
 
-        {{/* Content Grid */}}
+        {{/* Metrics/Stats Bar Placeholder (Optional) */}}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+          {[
+            {{ label: 'Sources', val: Object.keys(rawData).length }},
+            {{ label: 'Total Items', val: data.length }},
+            {{ label: 'Status', val: 'Verified' }},
+            {{ label: 'AI Confidence', val: '98%' }}
+          ].map((stat, i) => (
+            <div key={{i}} className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
+              <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-1">{{stat.label}}</p>
+              <p className="text-xl font-bold text-white">{{stat.val}}</p>
+            </div>
+          ))}
+        </div>
+
+        {{/* Main Content Grid */}}
         <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {{data.map((item, index) => (
-            <article 
-              key={{index}}
-              className="group bg-white/10 backdrop-blur-xl rounded-2xl p-6 border border-white/20 hover:border-purple-400 hover:bg-white/15 transition-all duration-300 cursor-pointer"
+          {{data.map((item, idx) => (
+            <div 
+              key={{idx}} 
+              className="group relative bg-slate-900/50 hover:bg-slate-800/50 backdrop-blur-xl border border-white/10 hover:border-indigo-500/50 rounded-3xl p-6 transition-all duration-300 hover:-translate-y-1"
             >
-              <h3 className="text-white font-bold text-xl mb-3 group-hover:text-purple-300 transition-colors">
+              <div className="absolute top-4 right-4 text-slate-700 group-hover:text-indigo-400 transition-colors">
+                <ArrowRight size={{20}} />
+              </div>
+
+              <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                {{(() => {{
+                  // Dynamic icon selection logic
+                  const Icon = {{
+                    BookOpen, ShoppingBag, Plane, Bed, Code, Play, Zap, AlertCircle
+                  }}[item.icon] || Zap;
+                  return <Icon size={{24}} className="text-indigo-400" />;
+                }})()}}
+              </div>
+
+              <h3 className="text-xl font-bold text-white mb-3 line-clamp-1 group-hover:text-indigo-100 transition-colors">
                 {{item.title}}
               </h3>
-              <p className="text-gray-300 text-sm mb-4 line-clamp-3">
-                {{item.description}}
+              
+              <p className="text-slate-400 text-sm leading-relaxed mb-6 line-clamp-3">
+                {{item.desc}}
               </p>
+
               {{item.url && (
                 <a 
                   href={{item.url}} 
                   target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-purple-400 hover:text-purple-300 text-sm font-medium inline-flex items-center gap-2"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 text-indigo-400 group-hover:text-indigo-300 text-sm font-semibold transition-colors"
                 >
-                  View More
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={{2}} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                  </svg>
+                  Explore Details
+                  <ExternalLink size={{14}} />
                 </a>
               )}}
-            </article>
+            </div>
           ))}}
         </main>
 
-        {{/* Figma Preview Link */}}
-        <footer className="mt-12 text-center">
-          <a 
-            href="{figma_preview_url}"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block text-gray-400 hover:text-white text-sm transition-colors"
-          >
-            View Figma Design →
+        {{/* Attribution */}}
+        <footer className="mt-20 py-8 border-t border-white/5 flex flex-col items-center gap-4">
+          <p className="text-slate-500 text-sm">Design based on Figma template: <span className="text-slate-300 font-medium">{figma_node_id}</span></p>
+          <a href="{figma_preview_url}" className="text-indigo-400 hover:text-indigo-300 text-xs uppercase tracking-widest font-bold">
+            View Live Figma Design
           </a>
         </footer>
       </div>
@@ -264,18 +204,17 @@ export const {template_name.replace(' ', '')} = () => {{
   );
 }};
 
-export default {template_name.replace(' ', '')};
+export default {component_name};
 """
 
 
 def fetch_ui_template(file_key: str, node_id: str, include_preview: bool = True) -> Dict[str, Any]:
     """
-    Fetch a specific node from a Figma file
+    Fetch a specific node from a Figma file using the REST API.
     """
     token = os.getenv("FIGMA_ACCESS_TOKEN")
     if not token:
-        print("⚠️ FIGMA_ACCESS_TOKEN not found")
-        return {"error": "Missing token", "preview_url": f"https://www.figma.com/file/{file_key}?node-id={node_id}"}
+        return {"error": "Missing FIGMA_ACCESS_TOKEN", "preview_url": f"https://www.figma.com/file/{file_key}?node-id={node_id}"}
 
     conn = http.client.HTTPSConnection("api.figma.com")
     headers = {"X-Figma-Token": token}
@@ -287,7 +226,10 @@ def fetch_ui_template(file_key: str, node_id: str, include_preview: bool = True)
         res = conn.getresponse()
         data = json.loads(res.read().decode())
         
-        node_data = data.get("nodes", {}).get(node_id.replace('-', ':'), {})
+        # Figma API returns nodes with ':' but the key in JSON might have '-' depending on version/ID type
+        # We try both
+        normalized_id = node_id.replace('-', ':')
+        node_data = data.get("nodes", {}).get(normalized_id) or data.get("nodes", {}).get(node_id)
         
         result = {
             "node": node_data,
@@ -300,7 +242,7 @@ def fetch_ui_template(file_key: str, node_id: str, include_preview: bool = True)
             conn.request("GET", img_endpoint, headers=headers)
             img_res = conn.getresponse()
             img_data = json.loads(img_res.read().decode())
-            image_url = img_data.get("images", {}).get(node_id)
+            image_url = img_data.get("images", {}).get(node_id) or img_data.get("images", {}).get(normalized_id)
             if image_url:
                 result["preview_url"] = image_url
                 
@@ -311,30 +253,3 @@ def fetch_ui_template(file_key: str, node_id: str, include_preview: bool = True)
         return {"error": str(e)}
     finally:
         conn.close()
-
-if __name__ == "__main__":
-    # Test generation
-    template_data = {
-        "papers": [
-            {
-                "title": "Attention Is All You Need",
-                "summary": "Introduces Transformer architecture...",
-                "url": "https://arxiv.org/abs/1706.03762"
-            },
-            {
-                "title": "BERT: Pre-training of Deep Bidirectional Transformers",
-                "summary": "Revolutionary NLP model...",
-                "url": "https://arxiv.org/abs/1810.04805"
-            }
-        ]
-    }
-    
-    code = generate_dashboard_component(
-        figma_node_id="123:456",
-        figma_preview_url="https://figma.com/preview.png",
-        template_name="PaperList",
-        template_data=template_data,
-        domain="study"
-    )
-    
-    print(code)

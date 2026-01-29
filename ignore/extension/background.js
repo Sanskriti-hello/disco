@@ -508,16 +508,19 @@ async function getBrowsingHistory(maxResults = 100) {
 // 6. GOOGLE OAUTH2 (IDENTITY API)
 // ---------------------------------------------------------------------------
 
-const EXTENSION_ID = 'hfbmlpfcjbanfgibhaaecobolieiejba';
-const CLIENT_ID = '276787019429-oi9h181975btf3qop3s4fl1ed7lnc83c.apps.googleusercontent.com';
+const EXTENSION_ID = 'cocfaidajkgofmeoajnfeehcjjkfihom';
+const CLIENT_ID = '276787019429-a1cd2l23t5g7ksurkdjkc9a72n3kgclb.apps.googleusercontent.com';
 const REDIRECT_URI = `https://${EXTENSION_ID}.chromiumapp.org/`;
 
 async function authenticateGoogle() {
   const scopes = [
     "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/calendar.events",
     "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/drive.metadata.readonly",
     "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/youtube.readonly"
+    "https://www.googleapis.com/auth/youtube.readonly",
+    "https://www.googleapis.com/auth/documents.readonly"
   ];
 
   const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +

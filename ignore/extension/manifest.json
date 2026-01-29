@@ -15,12 +15,15 @@
     "identity"
   ],
   "oauth2": {
-    "client_id": "276787019429-oi9h181975btf3qop3s4fl1ed7lnc83c.apps.googleusercontent.com",
+    "client_id": "276787019429-a1cd2l23t5g7ksurkdjkc9a72n3kgclb.apps.googleusercontent.com",
     "scopes": [
       "https://www.googleapis.com/auth/calendar.readonly",
+      "https://www.googleapis.com/auth/calendar.events",
       "https://www.googleapis.com/auth/drive.readonly",
+      "https://www.googleapis.com/auth/drive.metadata.readonly",
       "https://www.googleapis.com/auth/gmail.readonly",
-      "https://www.googleapis.com/auth/youtube.readonly"
+      "https://www.googleapis.com/auth/youtube.readonly",
+      "https://www.googleapis.com/auth/documents.readonly"
     ]
   },
   "host_permissions": [

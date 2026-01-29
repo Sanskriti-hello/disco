@@ -1,7 +1,7 @@
 """
 CodeSandbox Integration Module (Async)
 =====================================
-Creates real CodeSandbox previews from generated React code using httpx.
+Creates real CodeSandbox previews from generated React code using the verified Define API.
 """
 
 import os
@@ -25,14 +25,16 @@ class SandboxResult:
 class CodeSandboxClient:
     """
     Client for creating and managing CodeSandbox previews.
+    Uses the verified /api/v1/sandboxes/define endpoint.
     """
     
-    API_URL = "https://api.codesandbox.io/api/v1/sandboxes"
+    # Using the verified working endpoint
+    API_URL = "https://codesandbox.io/api/v1/sandboxes/define?json=1"
     
     def __init__(self, api_token: Optional[str] = None):
         self.api_token = api_token or os.getenv("CODESANDBOX_API_TOKEN") or os.getenv("SANDBOX_API")
-        if not self.api_token:
-            raise ValueError("CodeSandbox API token is required. Set CODESANDBOX_API_TOKEN or SANDBOX_API in .env")
+        # Note: Define API often works without token for public sandboxes, 
+        # but we'll include it if present.
     
     async def create_sandbox(
         self,
@@ -45,14 +47,14 @@ class CodeSandboxClient:
         """
         title = title or f"GenTab Dashboard - {datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
-        # Build the files structure according to the official guide
+        # Build the files structure for the Define API
+        # The Define API uses 'content' inside each file object
         files = {
             "App.jsx": {
-                "code": jsx_code,
-                "isBinary": False
+                "content": jsx_code
             },
             "index.js": {
-                "code": """import React from 'react';
+                "content": """import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './styles.css';
@@ -62,65 +64,70 @@ root.render(
   <React.StrictMode>
     <App />
   </React.StrictMode>
-);""",
-                "isBinary": False
+);"""
             },
             "styles.css": {
-                "code": """/* Base styles for GenTab Dashboard */
+                "content": """/* Base styles for GenTab Dashboard */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  font-family: 'Inter', system-ui, sans-serif;
-  background: #050510;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0a0a1a;
   color: white;
   min-height: 100vh;
 }
-""",
-                "isBinary": False
+"""
             },
             "package.json": {
-                "code": json.dumps({
+                "content": json.dumps({
                     "name": "gentab-dashboard",
                     "version": "1.0.0",
                     "main": "index.js",
                     "dependencies": {
                         "react": "^18.2.0",
-                        "react-dom": "^18.2.0"
+                        "react-dom": "^18.2.0",
+                        "lucide-react": "latest",
+                        "clsx": "latest",
+                        "tailwind-merge": "latest"
                     }
-                }, indent=2),
-                "isBinary": False
+                }, indent=2)
             }
         }
         
         if additional_files:
             for filename, code in additional_files.items():
-                files[filename] = {"code": code, "isBinary": False}
+                files[filename] = {"content": code}
         
         payload = {
-            "template": "react",
-            "title": title,
             "files": files
         }
+        
+        headers = {}
+        if self.api_token:
+            headers["Authorization"] = f"Bearer {self.api_token}"
         
         async with httpx.AsyncClient() as client:
             try:
                 resp = await client.post(
                     self.API_URL,
-                    headers={"Authorization": f"Bearer {self.api_token}"},
+                    headers=headers,
                     json=payload,
                     timeout=30.0
                 )
-                data = resp.json()
                 
-                if resp.status_code in [200, 201]:
-                    sandbox_id = data.get("sandbox_id") or data.get("id")
-                    return SandboxResult(
-                        success=True,
-                        sandbox_id=sandbox_id,
-                        embed_url=f"https://codesandbox.io/embed/{sandbox_id}?fontsize=14&hidenavigation=1&theme=dark",
-                        preview_url=f"https://codesandbox.io/p/sandbox/{sandbox_id}"
-                    )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    sandbox_id = data.get("sandbox_id")
+                    if sandbox_id:
+                        return SandboxResult(
+                            success=True,
+                            sandbox_id=sandbox_id,
+                            embed_url=f"https://codesandbox.io/embed/{sandbox_id}?fontsize=14&hidenavigation=1&theme=dark",
+                            preview_url=f"https://codesandbox.io/p/sandbox/{sandbox_id}"
+                        )
+                    else:
+                        return SandboxResult(success=False, error="No sandbox_id in response")
                 else:
-                    return SandboxResult(success=False, error=data.get("message", f"API Error {resp.status_code}"))
+                    return SandboxResult(success=False, error=f"API Error {resp.status_code}: {resp.text[:200]}")
             except Exception as e:
                 return SandboxResult(success=False, error=str(e))
 

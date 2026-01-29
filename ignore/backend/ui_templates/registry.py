@@ -70,19 +70,21 @@ class TemplateRegistryV2:
             },
             
             "shopping": {
-                "figma_url": "https://www.figma.com/design/VPntNOQdUsyjQ22UMWMaeG/shopping-domain",
+                "figma_url": "https://www.figma.com/design/Wlf3wJeUUoXN8DBY4QtBMs/shopping?node-id=0-1",
                 "templates": {
                     "ProductGrid": {
                         "description": "Grid of products with images",
                         "best_for": ["browsing", "comparing", "multiple items"],
                         "keywords": ["product", "grid", "shop", "catalog"],
-                        "figma_node_id": "2:1"
+                        "figma_file_key": "Wlf3wJeUUoXN8DBY4QtBMs",
+                        "figma_node_id": "0:1"
                     },
                     "PriceComparison": {
                         "description": "Price comparison table",
                         "best_for": ["comparing prices", "deals", "specifications"],
                         "keywords": ["compare", "price", "table", "specs"],
-                        "figma_node_id": "2:2"
+                        "figma_file_key": "Wlf3wJeUUoXN8DBY4QtBMs",
+                        "figma_node_id": "0:1"
                     }
                 }
             },
@@ -106,19 +108,21 @@ class TemplateRegistryV2:
             },
             
             "code": {
-                "figma_url": "https://www.figma.com/design/VPntNOQdUsyjQ22UMWMaeG/code-domain",
+                "figma_url": "https://www.figma.com/design/JX502dwBhbh7pMFV3nuGpi/code-1?node-id=0-1",
                 "templates": {
                     "CodeViewer": {
                         "description": "Syntax-highlighted code display",
                         "best_for": ["code snippets", "examples", "documentation"],
                         "keywords": ["code", "snippet", "syntax", "programming"],
-                        "figma_node_id": "4:1"
+                        "figma_file_key": "JX502dwBhbh7pMFV3nuGpi",
+                        "figma_node_id": "0:1"
                     },
                     "RepoExplorer": {
                         "description": "GitHub repository overview",
                         "best_for": ["repositories", "github", "projects"],
                         "keywords": ["repo", "github", "git", "project"],
-                        "figma_node_id": "4:2"
+                        "figma_file_key": "JX502dwBhbh7pMFV3nuGpi",
+                        "figma_node_id": "0:1"
                     }
                 }
             },
@@ -142,19 +146,21 @@ class TemplateRegistryV2:
             },
             
             "generic": {
-                "figma_url": "https://www.figma.com/design/VPntNOQdUsyjQ22UMWMaeG/generic-domain",
+                "figma_url": "https://www.figma.com/design/hTDboSi9SgURHs3KrewNNB/generic-2?node-id=1-786",
                 "templates": {
                     "SummaryView": {
                         "description": "General content summary",
                         "best_for": ["summary", "overview", "general"],
                         "keywords": ["summary", "overview", "content", "text"],
-                        "figma_node_id": "6:1"
+                        "figma_file_key": "hTDboSi9SgURHs3KrewNNB",
+                        "figma_node_id": "1:786"
                     },
                     "LinkGrid": {
                         "description": "Grid of links with previews",
                         "best_for": ["links", "bookmarks", "collection"],
                         "keywords": ["link", "bookmark", "grid", "collection"],
-                        "figma_node_id": "6:2"
+                        "figma_file_key": "PxLCYxuApLFWLVOiCeaCd6",
+                        "figma_node_id": "0:1"
                     }
                 }
             }
@@ -240,7 +246,8 @@ class TemplateRegistryV2:
             "description": template_info.get("description", ""),
             "best_for": template_info.get("best_for", []),
             "keywords": template_info.get("keywords", []),
-            "figma_node_id": template_info.get("figma_node_id")
+            "figma_node_id": template_info.get("figma_node_id"),
+            "figma_file_key": template_info.get("figma_file_key")
         }
     
     def get_templates_for_domain(self, domain: str) -> Dict[str, Any]:
