@@ -1,3 +1,4 @@
+# backend/main.py - Successfully configured with Google OAuth and Figma-to-React generation
 import sys
 import os
 from fastapi import FastAPI

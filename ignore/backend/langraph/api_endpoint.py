@@ -63,7 +63,7 @@ async def generate_dashboard(request: DomainSelectionRequest):
             raise HTTPException(400, f"Invalid domain. Must be one of: {valid_domains}")
         
         # 2. Convert tabs to dict format for LangGraph
-        tabs_data = [tab.dict() for tab in request.tabs]
+        tabs_data = [tab.model_dump() for tab in request.tabs]
         
         # 3. Build initial state for LangGraph
         initial_state = {

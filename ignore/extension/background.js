@@ -129,12 +129,8 @@ Create 1-5 clusters based on tab similarity. Combine related topics.`;
       })
     });
 
-    let data;
-    try {
-      data = await response.json();
-    } catch (e) {
-      throw new Error("Invalid JSON from LLM API");
-    }
+    const data = await response.json();
+    console.log('LLM Raw Data:', data);
 
     if (!data.choices || !data.choices[0]) {
       throw new Error("Malformed LLM response");
@@ -235,6 +231,7 @@ What domain should handle this?`;
       });
 
       const data = await response.json();
+      console.log('Domain Selection Raw Data:', data);
 
       if (!data.error) {
         const result = JSON.parse(data.choices[0].message.content);
@@ -333,8 +330,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           return;
         }
 
-        // Get domain selection
         const domainResult = await selectDomain(apiKey, selectedCluster, userPrompt);
+        console.log('Final Domain Selected:', domainResult.domain);
 
         // Save to storage
         await chrome.storage.local.set({
@@ -508,8 +505,8 @@ async function getBrowsingHistory(maxResults = 100) {
 // 6. GOOGLE OAUTH2 (IDENTITY API)
 // ---------------------------------------------------------------------------
 
-const EXTENSION_ID = 'cocfaidajkgofmeoajnfeehcjjkfihom';
-const CLIENT_ID = '276787019429-a1cd2l23t5g7ksurkdjkc9a72n3kgclb.apps.googleusercontent.com';
+const EXTENSION_ID = 'klpjekjcldkpdleckklnoambfliodpca';
+const CLIENT_ID = '276787019429-k78ckehgoe5k2egu38fdns4np39vsstf.apps.googleusercontent.com';
 const REDIRECT_URI = `https://${EXTENSION_ID}.chromiumapp.org/`;
 
 async function authenticateGoogle() {

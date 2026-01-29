@@ -87,125 +87,142 @@ def generate_dashboard_component(
     if not items:
         items = [{"title": "No data found", "desc": "We couldn't find specific items for this view.", "url": "", "icon": "AlertCircle"}]
 
-    # 2. Generate Premium React Code
+    # 2. Generate Premium React Code using standard string replacement 
+    # (Avoiding f-strings here to bypass complex brace-escaping issues in newer Python versions)
     component_name = re.sub(r'\W+', '', template_name)
     
-    return f"""import React from 'react';
-import {{ 
-  {", ".join(set([item['icon'] for item in items] + ['Layout', 'ArrowRight', 'ExternalLink', 'Clock']))}
-}} from 'lucide-react';
+    react_code = """import React from 'react';
+import { 
+  __ICONS__
+} from 'lucide-react';
 
 /**
- * {template_name} Dashboard
- * Generated for: {domain} domain
- * Source: {figma_preview_url}
+ * __TEMPLATE_NAME__ Dashboard
+ * Generated for: __DOMAIN__ domain
+ * Source: __FIGMA_PREVIEW_URL__
  */
-const {component_name} = () => {{
-  const data = {json.dumps(items, indent=2)};
-  const rawData = {json.dumps(template_data, indent=2)};
+const __COMPONENT_NAME__ = () => {
+  const data = __DATA_JSON__;
+  const rawData = __RAW_DATA_JSON__;
 
   return (
     <div className="min-h-screen bg-[#050510] text-slate-200 font-sans selection:bg-indigo-500/30">
-      {{/* Glossy Background */}}
+      {/* Glossy Background */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/20 rounded-full blur-[120px] animate-pulse" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 rounded-full blur-[120px]" />
       </div>
 
       <div className="relative z-10 p-4 md:p-8 max-w-7xl mx-auto">
-        {{/* Header Section */}}
+        {/* Header Section */}
         <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 animate-in fade-in slide-in-from-top-4 duration-700">
           <div>
             <div className="flex items-center gap-2 text-indigo-400 font-medium text-sm mb-3 uppercase tracking-widest">
-              <Layout size={{14}} />
-              <span>{domain} Dashboard</span>
+              <Layout size={14} />
+              <span>__DOMAIN_LABEL__ Dashboard</span>
             </div>
             <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight">
-              {template_name}
+              __TEMPLATE_NAME__
             </h1>
           </div>
           <div className="bg-white/5 backdrop-blur-md rounded-2xl px-5 py-3 border border-white/10 flex items-center gap-3">
-            <Clock size={{18}} className="text-slate-400" />
+            <Clock size={18} className="text-slate-400" />
             <div className="text-xs">
               <p className="text-slate-400">Generated at</p>
-              <p className="text-white font-medium">{{new Date().toLocaleTimeString()}}</p>
+              <p className="text-white font-medium">{new Date().toLocaleTimeString()}</p>
             </div>
           </div>
         </header>
 
-        {{/* Metrics/Stats Bar Placeholder (Optional) */}}
+        {/* Metrics/Stats Bar Placeholder (Optional) */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
           {[
-            {{ label: 'Sources', val: Object.keys(rawData).length }},
-            {{ label: 'Total Items', val: data.length }},
-            {{ label: 'Status', val: 'Verified' }},
-            {{ label: 'AI Confidence', val: '98%' }}
+            { label: 'Sources', val: Object.keys(rawData).length },
+            { label: 'Total Items', val: data.length },
+            { label: 'Status', val: 'Verified' },
+            { label: 'AI Confidence', val: '98%' }
           ].map((stat, i) => (
-            <div key={{i}} className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
-              <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-1">{{stat.label}}</p>
-              <p className="text-xl font-bold text-white">{{stat.val}}</p>
+            <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
+              <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-1">{stat.label}</p>
+              <p className="text-xl font-bold text-white">{stat.val}</p>
             </div>
           ))}
         </div>
 
-        {{/* Main Content Grid */}}
+        {/* Main Content Grid */}
         <main className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {{data.map((item, idx) => (
+          {data.map((item, idx) => (
             <div 
-              key={{idx}} 
+              key={idx} 
               className="group relative bg-slate-900/50 hover:bg-slate-800/50 backdrop-blur-xl border border-white/10 hover:border-indigo-500/50 rounded-3xl p-6 transition-all duration-300 hover:-translate-y-1"
             >
               <div className="absolute top-4 right-4 text-slate-700 group-hover:text-indigo-400 transition-colors">
-                <ArrowRight size={{20}} />
+                <ArrowRight size={20} />
               </div>
 
               <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
-                {{(() => {{
+                {(() => {
                   // Dynamic icon selection logic
-                  const Icon = {{
-                    BookOpen, ShoppingBag, Plane, Bed, Code, Play, Zap, AlertCircle
-                  }}[item.icon] || Zap;
-                  return <Icon size={{24}} className="text-indigo-400" />;
-                }})()}}
+                  const iconMap = {
+                    BookOpen, ShoppingBag, Plane, Bed, Code, Play, Zap, AlertCircle, TrendingUp, Newspaper
+                  };
+                  const Icon = iconMap[item.icon] || Zap;
+                  return <Icon size={24} className="text-indigo-400" />;
+                })()}
               </div>
 
               <h3 className="text-xl font-bold text-white mb-3 line-clamp-1 group-hover:text-indigo-100 transition-colors">
-                {{item.title}}
+                {item.title}
               </h3>
               
               <p className="text-slate-400 text-sm leading-relaxed mb-6 line-clamp-3">
-                {{item.desc}}
+                {item.desc}
               </p>
 
-              {{item.url && (
+              {item.url && (
                 <a 
-                  href={{item.url}} 
+                  href={item.url} 
                   target="_blank" 
                   rel="noreferrer"
                   className="flex items-center gap-2 text-indigo-400 group-hover:text-indigo-300 text-sm font-semibold transition-colors"
                 >
                   Explore Details
-                  <ExternalLink size={{14}} />
+                  <ExternalLink size={14} />
                 </a>
-              )}}
+              )}
             </div>
-          ))}}
+          ))}
         </main>
 
-        {{/* Attribution */}}
+        {/* Attribution */}
         <footer className="mt-20 py-8 border-t border-white/5 flex flex-col items-center gap-4">
-          <p className="text-slate-500 text-sm">Design based on Figma template: <span className="text-slate-300 font-medium">{figma_node_id}</span></p>
-          <a href="{figma_preview_url}" className="text-indigo-400 hover:text-indigo-300 text-xs uppercase tracking-widest font-bold">
+          <p className="text-slate-500 text-sm">Design based on Figma template: <span className="text-slate-300 font-medium">__NODE_ID__</span></p>
+          <a href="__FIGMA_PREVIEW_URL__" className="text-indigo-400 hover:text-indigo-300 text-xs uppercase tracking-widest font-bold">
             View Live Figma Design
           </a>
         </footer>
       </div>
     </div>
   );
-}};
+};
 
-export default {component_name};
+export default __COMPONENT_NAME__;
 """
+    
+    # Perform replacements
+    icons_list = set([item['icon'] for item in items] + ['Layout', 'ArrowRight', 'ExternalLink', 'Clock', 'BookOpen', 'ShoppingBag', 'Plane', 'Bed', 'Code', 'Play', 'Zap', 'AlertCircle', 'TrendingUp', 'Newspaper'])
+    
+    react_code = react_code.replace("__ICONS__", ", ".join(sorted(icons_list)))
+    react_code = react_code.replace("__TEMPLATE_NAME__", template_name)
+    react_code = react_code.replace("__DOMAIN__", domain)
+    react_code = react_code.replace("__DOMAIN_LABEL__", domain.capitalize())
+    react_code = react_code.replace("__FIGMA_PREVIEW_URL__", figma_preview_url)
+    react_code = react_code.replace("__COMPONENT_NAME__", component_name)
+    react_code = react_code.replace("__DATA_JSON__", json.dumps(items, indent=2))
+    react_code = react_code.replace("__RAW_DATA_JSON__", json.dumps(template_data, indent=2))
+    react_code = react_code.replace("__NODE_ID__", figma_node_id)
+    
+    return react_code
 
 
 def fetch_ui_template(file_key: str, node_id: str, include_preview: bool = True) -> Dict[str, Any]:

@@ -2,18 +2,23 @@ import React, { useState, useEffect } from "react";
 
 // Declare chrome global for TypeScript
 declare const chrome: {
-    runtime?: {
+    runtime: {
         sendMessage: (
-            message: { action?: string; type?: string; apiKey?: string; clusterId?: number; userPrompt?: string },
-            callback?: (response: unknown) => void
+            message: any,
+            callback?: (response: any) => void
         ) => void;
+        getURL: (path: string) => string;
         lastError?: { message: string };
     };
-    storage?: {
+    storage: {
         local: {
-            get: (keys: string | string[], callback: (result: Record<string, unknown>) => void) => void;
-            set: (data: Record<string, unknown>) => void;
+            get: (keys: string | string[], callback: (result: Record<string, any>) => void) => void;
+            set: (data: Record<string, any>) => void;
         };
+    };
+    tabs: {
+        getCurrent: (callback: (tab: any) => void) => void;
+        update: (tabId: number, options: { url: string }) => void;
     };
 };
 
@@ -180,6 +185,20 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
         );
     };
 
+    // NEW: Handle Google Login
+    const handleGoogleLogin = () => {
+        setLoading(true);
+        setStatus("🔐 Signing in with Google...");
+        chrome.runtime.sendMessage({ action: "getAuthToken" }, (response: any) => {
+            setLoading(false);
+            if (response?.success) {
+                setStatus("✅ Authenticated with Google!");
+            } else {
+                setStatus(`❌ Auth failed: ${response?.error || 'Unknown error'}`);
+            }
+        });
+    };
+
     // NEW: Generate Dashboard from Backend API
     const handleGenerateDashboard = () => {
         if (!chrome?.runtime?.sendMessage) {
@@ -207,6 +226,9 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
                     setStatus("✅ Dashboard generated!");
                     setStep("dashboard");
                     onDashboardGenerated?.(res.config);
+
+                    // AUTO-OPEN the final output dashboard
+                    window.open(chrome.runtime.getURL('dashboard.html'), '_blank');
                 } else {
                     setStatus(res?.error || "Failed to generate dashboard");
                     if (res?.hint) {
@@ -278,6 +300,15 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
                                     <>🔍 Analyze My Tabs</>
                                 )}
                             </button>
+
+                            <div className="flex items-center gap-2 pt-2">
+                                <button
+                                    onClick={handleGoogleLogin}
+                                    className="flex-1 py-3 rounded-xl border border-[#ffffff33] text-[#ffffffcc] font-medium hover:bg-[#ffffff11] transition-all text-sm flex items-center justify-center gap-2"
+                                >
+                                    🔑 Connect Google Workspace
+                                </button>
+                            </div>
                         </div>
                     )}
 
@@ -426,6 +457,13 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
                                     {JSON.stringify(dashboardConfig.ui_props, null, 2)}
                                 </pre>
                             </div>
+
+                            <button
+                                onClick={() => window.open(chrome.runtime.getURL('dashboard.html'), '_blank')}
+                                className="w-full py-4 rounded-xl bg-gradient-to-r from-[#10B981] to-[#06B6D4] text-white font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2"
+                            >
+                                🚀 Open Full Dashboard
+                            </button>
 
                             <button
                                 onClick={handleReset}
