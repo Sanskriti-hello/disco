@@ -9,10 +9,8 @@ Note: This is a simplified version. For production, consider:
 - Custom rendering with Figma REST API data
 """
 
+from typing import Dict, Any, List
 import json
-import os
-import http.client
-from typing import Dict, Any, List, Optional
 
 
 def figma_node_to_react(
@@ -162,27 +160,9 @@ def generate_dashboard_component(
             for f in flights
         ]
     
-    elif domain == "entertainment":
-        # Videos or Movies or Music
-        videos = template_data.get("videos", [])
-        movies = template_data.get("movies", [])
-        if videos:
-            data_items = [{"title": v.get("title", ""), "description": v.get("description", ""), "url": v.get("url", "")} for v in videos]
-        elif movies:
-            data_items = [{"title": m.get("title", ""), "description": m.get("snippet", ""), "url": m.get("url", "")} for m in movies]
-            
-    elif domain == "code":
-        snippets = template_data.get("code_snippets", [])
-        data_items = [{"title": s.get("language", "code"), "description": s.get("code", "")[:200], "url": ""} for s in snippets]
-
     else:
-        # Improved Generic fallback - try to find any list in template_data
-        for key, value in template_data.items():
-            if isinstance(value, list) and len(value) > 0 and isinstance(value[0], dict):
-                data_items = [{"title": item.get("title", "Item"), "description": item.get("snippet") or item.get("description") or str(item), "url": item.get("url", "")} for item in value]
-                break
-        if not data_items:
-            data_items = template_data.get("items", [])
+        # Generic fallback
+        data_items = template_data.get("items", [])
     
     # Generate component
     return f"""import React from 'react';
@@ -268,49 +248,9 @@ export default {template_name.replace(' ', '')};
 """
 
 
-def fetch_ui_template(file_key: str, node_id: str, include_preview: bool = True) -> Dict[str, Any]:
-    """
-    Fetch a specific node from a Figma file
-    """
-    token = os.getenv("FIGMA_ACCESS_TOKEN")
-    if not token:
-        print("⚠️ FIGMA_ACCESS_TOKEN not found")
-        return {"error": "Missing token", "preview_url": f"https://www.figma.com/file/{file_key}?node-id={node_id}"}
-
-    conn = http.client.HTTPSConnection("api.figma.com")
-    headers = {"X-Figma-Token": token}
-    
-    try:
-        # Fetch node data
-        endpoint = f"/v1/files/{file_key}/nodes?ids={node_id}"
-        conn.request("GET", endpoint, headers=headers)
-        res = conn.getresponse()
-        data = json.loads(res.read().decode())
-        
-        node_data = data.get("nodes", {}).get(node_id.replace('-', ':'), {})
-        
-        result = {
-            "node": node_data,
-            "preview_url": f"https://www.figma.com/file/{file_key}?node-id={node_id}"
-        }
-        
-        # Optionally fetch preview image
-        if include_preview:
-            img_endpoint = f"/v1/images/{file_key}?ids={node_id}&format=png"
-            conn.request("GET", img_endpoint, headers=headers)
-            img_res = conn.getresponse()
-            img_data = json.loads(img_res.read().decode())
-            image_url = img_data.get("images", {}).get(node_id)
-            if image_url:
-                result["preview_url"] = image_url
-                
-        return result
-        
-    except Exception as e:
-        print(f"Error fetching Figma node: {e}")
-        return {"error": str(e)}
-    finally:
-        conn.close()
+# ============================================================================
+# TEST
+# ============================================================================
 
 if __name__ == "__main__":
     # Test generation

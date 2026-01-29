@@ -372,6 +372,89 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 
+  // =========================================================================
+  // NEW: Call Backend API to Generate Dashboard
+  // =========================================================================
+  if (request.action === 'generateDashboard') {
+    (async () => {
+      try {
+        const BACKEND_URL = 'http://localhost:8000';
+
+        // Get stored domain selection
+        const { selectedDomain, google_token } = await chrome.storage.local.get(['selectedDomain', 'google_token']);
+
+        if (!selectedDomain) {
+          sendResponse({ error: 'No domain selected. Run selectDomain first.' });
+          return;
+        }
+
+        console.log('🚀 Calling backend API...');
+        console.log('Domain:', selectedDomain.domain);
+        console.log('Tabs:', selectedDomain.tabs?.length || 0);
+
+        // Prepare request payload
+        const payload = {
+          domain: selectedDomain.domain,
+          tabs: selectedDomain.tabs.map(tab => ({
+            id: tab.id,
+            title: tab.title || "Untitled",
+            url: tab.url || "",
+            content: tab.content || ""
+          })),
+          user_prompt: selectedDomain.userPrompt || request.userPrompt || "",
+          summary: selectedDomain.summary || "",
+          history: [],
+          google_token: google_token || null
+        };
+
+        // Call the backend
+        const response = await fetch(`${BACKEND_URL}/api/generate-dashboard`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Backend error: ${response.status} - ${errorText}`);
+        }
+
+        const dashboardConfig = await response.json();
+        console.log('✅ Dashboard generated:', dashboardConfig.selected_template);
+
+        // Save the dashboard config
+        await chrome.storage.local.set({
+          dashboardConfig: dashboardConfig,
+          lastDashboardTime: Date.now()
+        });
+
+        sendResponse({
+          success: true,
+          config: dashboardConfig
+        });
+
+      } catch (error) {
+        console.error('Dashboard generation failed:', error);
+        sendResponse({
+          error: error.message,
+          hint: 'Make sure the backend server is running (python main.py)'
+        });
+      }
+    })();
+    return true;
+  }
+
+  // Get stored dashboard config
+  if (request.action === 'getDashboardConfig') {
+    (async () => {
+      const { dashboardConfig } = await chrome.storage.local.get('dashboardConfig');
+      sendResponse({ config: dashboardConfig || null });
+    })();
+    return true;
+  }
+
   // Legacy: Get tabs for display
   if (request.type === "GET_TABS") {
     extractTabsContent().then(tabs => {
@@ -385,6 +468,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     getBrowsingHistory(request.maxResults || 100).then(history => {
       sendResponse({ history });
     });
+    return true;
+  }
+
+  // Google OAuth Handler
+  if (request.action === 'getAuthToken') {
+    authenticateGoogle()
+      .then(token => sendResponse({ success: true, token }))
+      .catch(error => sendResponse({ success: false, error }));
     return true;
   }
 
@@ -411,6 +502,53 @@ async function getBrowsingHistory(maxResults = 100) {
     lastVisitTime: item.lastVisitTime,
     visitCount: item.visitCount
   }));
+}
+
+// ---------------------------------------------------------------------------
+// 6. GOOGLE OAUTH2 (IDENTITY API)
+// ---------------------------------------------------------------------------
+
+const EXTENSION_ID = 'hfbmlpfcjbanfgibhaaecobolieiejba';
+const CLIENT_ID = '276787019429-oi9h181975btf3qop3s4fl1ed7lnc83c.apps.googleusercontent.com';
+const REDIRECT_URI = `https://${EXTENSION_ID}.chromiumapp.org/`;
+
+async function authenticateGoogle() {
+  const scopes = [
+    "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/youtube.readonly"
+  ];
+
+  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+    `client_id=${CLIENT_ID}&` +
+    `response_type=token&` +
+    `redirect_uri=${encodeURIComponent(REDIRECT_URI)}&` +
+    `scope=${encodeURIComponent(scopes.join(' '))}`;
+
+  return new Promise((resolve, reject) => {
+    chrome.identity.launchWebAuthFlow({
+      url: authUrl,
+      interactive: true
+    }, (redirectUrl) => {
+      if (chrome.runtime.lastError || !redirectUrl) {
+        reject(chrome.runtime.lastError?.message || "Auth failed");
+        return;
+      }
+
+      // Extract access token from the URL hash
+      const url = new URL(redirectUrl);
+      const params = new URLSearchParams(url.hash.substring(1));
+      const token = params.get('access_token');
+
+      if (token) {
+        chrome.storage.local.set({ google_token: token, token_expiry: Date.now() + 3500000 });
+        resolve(token);
+      } else {
+        reject("Token not found in response");
+      }
+    });
+  });
 }
 
 // ---------------------------------------------------------------------------

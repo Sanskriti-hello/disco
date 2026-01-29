@@ -91,14 +91,17 @@ class TravelDomain(BaseDomain):
             "timestamp": mcp_data.get("timestamp", datetime.now().isoformat()),
         }
         if "location" in mcp_data:
-            location_data = mcp_data["location"]
-            props["origin"] = {
-                "city": location_data.get("city", "Unknown"),
-                "state": location_data.get("state", ""),
-                "country": location_data.get("country", ""),
-                "airport": location_data.get("nearest_airport", ""),
-                "coordinates": location_data.get("coordinates", [0, 0]),
-            }
+            loc_results = mcp_data["location"].get("results", [])
+            if loc_results:
+                best_loc = loc_results[0]
+                addr = best_loc.get("address", {})
+                props["origin"] = {
+                    "name": best_loc.get("name", ""),
+                    "city": addr.get("city") or addr.get("town") or addr.get("suburb", "Unknown"),
+                    "state": addr.get("state", ""),
+                    "country": addr.get("country", ""),
+                    "coordinates": [best_loc["location"]["lat"], best_loc["location"]["lon"]]
+                }
         
         # Flight search results
         search_data = mcp_data.get("search", {})

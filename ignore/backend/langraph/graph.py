@@ -1,6 +1,6 @@
+# backend/langraph/graph.py
 """
-LangGraph Orchestrator - State machine definition
-Updated to use TemplateRegistry for intelligent template selection
+Updated LangGraph with dynamic Figma template selection and CodeSandbox Renderer Check
 """
 
 from typing import TypedDict, List, Dict, Any, Optional
@@ -10,282 +10,274 @@ from domains import get_domain, domain_exists
 
 
 class AgentState(TypedDict):
-    """State schema for the LangGraph agent"""
+    """State schema"""
     user_prompt: str
     tabs: List[Dict[str, Any]]
     history: List[Dict[str, str]]
     
-    domain_scores: Dict[str, float]
     primary_domain: Optional[str]
     tab_clusters: List[Dict[str, Any]]
     
     selected_template: Optional[str]
     template_data: Optional[Dict[str, Any]]
-    react_code: Optional[str]
-    widgets: List[Dict[str, Any]]
+    figma_node_id: Optional[str]
+    figma_preview_url: Optional[str]
+    
     error: Optional[str]
+    access_token: Optional[str]
+    react_code: Optional[str]
+    
+    # CodeSandbox validation
+    is_valid_ui: bool
+    validation_attempts: int
+    sandbox_id: Optional[str]
+    sandbox_embed_url: Optional[str]
+    sandbox_preview_url: Optional[str]
 
 
 async def domain_logic_node(state: AgentState) -> AgentState:
-    """Node: Execute domain-specific logic using BaseDomain architecture"""
+    """Execute domain-specific logic"""
     
-    domain_name = state["primary_domain"]
+    domain_name = state["primary_domain"] or "generic"
     prompt = state["user_prompt"]
     tabs = state["tabs"]
     
-    # Check if domain uses BaseDomain architecture
-    if domain_exists(domain_name):
-        try:
-            # Use BaseDomain architecture
-            domain = get_domain(domain_name)
-            
-            # Prepare MCP data (browser context)
-            # 1. Identify required MCPs for this request
-            required_mcps = domain.get_required_mcps(prompt)
-            print(f"[{domain_name}] Required MCPs: {required_mcps}")
+    # Track attempts to prevent infinite loops
+    attempts = state.get("validation_attempts", 0)
+    if attempts > 3:
+        return {**state, "error": "Maximum UI validation attempts reached. Falling back to simple view."}
 
-            # 2. Fetch MCP Data
-            mcp_data = {
-                "timestamp": datetime.now().isoformat(),
-            }
-            
-            # --- Browser / Filesystem ---
-            if "browser" in required_mcps:
-                # In a real scenario, this comes from the extension, but we can augment it
-                mcp_data["browser"] = {
-                    "tabs": tabs,
-                    "recent_searches": state.get("history", [])[:5] if state.get("history") else [],
-                    "tab_count": len(tabs),
-                    "domains": list(set(tab.get("url", "").split("/")[2] for tab in tabs if "url" in tab))
-                }
-                
-            if "filesystem" in required_mcps:
-                from backend.mcp.filesystem import filesystem_mcp
-                mcp_data["filesystem"] = {
-                    "files": filesystem_mcp.list_files(),
-                    "current_path": filesystem_mcp.root_dir
-                }
-
-            # --- Search & Information ---
-            if "search" in required_mcps:
-                from backend.mcp.search import search_mcp
-                mcp_data["search"] = search_mcp.search(prompt)
-
-            if "news" in required_mcps:
-                from backend.mcp.news import news_mcp
-                mcp_data["news"] = news_mcp.get_top_headlines(query=prompt)
-
-            if "arxiv" in required_mcps:
-                from backend.mcp.arxiv import arxiv_mcp
-                mcp_data["arxiv"] = arxiv_mcp.search_papers(prompt)
-            
-            # --- Location & Weather ---
-            if "location" in required_mcps:
-                from backend.mcp.location import location_mcp
-                loc = location_mcp.get_current_location()
-                mcp_data["location"] = loc
-                
-            if "weather" in required_mcps:
-                from backend.mcp.location import location_mcp
-                # Assuming simple look up for now, ideally passing lat/lon from location
-                if "location" in mcp_data and "coordinates" in mcp_data["location"]:
-                    lat, lon = mcp_data["location"]["coordinates"]
-                    mcp_data["weather"] = location_mcp.get_weather(lat, lon)
-
-            # --- Productivity (Google Workspace) ---
-            if "google_workspace" in required_mcps:
-                from backend.mcp.google_workspace import google_workspace_mcp
-                mcp_data["google_workspace"] = {
-                    "calendar": google_workspace_mcp.get_calendar_events(),
-                    # Could also search drive if needed
-                }
-                
-            # --- Shopping ---
-            if "amazon" in required_mcps:
-                from backend.mcp.amazon import amazon_mcp
-                mcp_data["amazon"] = amazon_mcp.search_products(prompt)
-                
-            if "ebay" in required_mcps:
-                # eBay existing script usage (mocking integration as simple function call)
-                # Ideally refactor ebay.py to class, but for now assuming we use a wrapper
-                # or just use our search MCP if ebay specific is complex
-                mcp_data["ebay"] = [] 
-
-            if "exchange_rate" in required_mcps:
-                from backend.mcp.exchange_rate import exchange_rate_mcp
-                # Mock conversion example
-                mcp_data["exchange_rate"] = exchange_rate_mcp.convert(100, "USD", "INR")
-
-            # --- Entertainment ---
-            if "spotify" in required_mcps:
-                from backend.mcp.spotify import spotify_mcp
-                mcp_data["spotify"] = spotify_mcp.get_recommendations()
-                
-            if "youtube" in required_mcps:
-                # Basic mock for now, could use backend.mcp.youtube if fully implemented
-                mcp_data["youtube"] = {"results": []}
-
-            
-            # Prepare LLM response (summary of domain-specific insights)
-            llm_response = f"Analyzing {len(tabs)} tabs for {domain_name} domain"
-            
-            # Process through domain
-            domain_response = await domain.process(
-                user_prompt=prompt,
-                mcp_data=mcp_data,
-                llm_response=llm_response
-            )
-            
-            # Check if we need more data
-            if domain_response.needs_more_data:
-                return {
-                    **state,
-                    "error": domain_response.follow_up_question,
-                    "selected_template": "FollowUpQuestion",
-                    "template_data": {
-                        "question": domain_response.follow_up_question,
-                        "domain": domain_name
-                    }
-                }
-            
-            return {
-                **state,
-                "selected_template": domain_response.ui_template,
-                "template_data": domain_response.ui_props,
-                "widgets": [],
-            }
-            
-        except Exception as e:
-            print(f"Domain processing failed: {e}")
-            return {
-                **state,
-                "error": f"Domain logic failed: {str(e)}",
-                "primary_domain": "generic"
-            }
-    
-    # Fallback to generic domain
-    try:
-        generic_domain = get_domain("generic")
-        mcp_data = {
-            "browser": {"tabs": tabs, "recent_searches": []},
-            "timestamp": datetime.now().isoformat(),
+    if not domain_exists(domain_name):
+        return {
+            **state,
+            "error": f"Domain {domain_name} not found"
         }
-        llm_response = "Generic response based on your query"
+    
+    try:
+        domain = get_domain(domain_name)
         
-        domain_response = await generic_domain.process(prompt, mcp_data, llm_response)
+        # Prepare Browser data
+        browser_data = {
+            "tabs": tabs,
+            "recent_searches": state.get("history", [])[:5],
+            "tab_count": len(tabs)
+        }
+        
+        # Process through domain
+        domain_response = await domain.process(
+            user_prompt=prompt,
+            browser_data=browser_data,
+            access_token=state.get("access_token")
+        )
+        
+        if domain_response.needs_more_data:
+            return {
+                **state,
+                "error": domain_response.follow_up_question,
+                "selected_template": "FollowUpQuestion",
+                "template_data": {
+                    "question": domain_response.follow_up_question
+                }
+            }
         
         return {
             **state,
             "selected_template": domain_response.ui_template,
-            "template_data": domain_response.ui_props,
+            "template_data": domain_response.ui_props
         }
+        
     except Exception as e:
+        print(f"Domain logic error: {e}")
         return {
             **state,
-            "error": f"All domain handlers failed: {str(e)}",
-            "primary_domain": "generic"
+            "error": f"Domain processing failed: {str(e)}"
         }
 
 
 async def select_template_node(state: AgentState) -> AgentState:
-    """
-    Node: Choose final template using TemplateRegistry
-    Uses keyword matching and semantic analysis to find best template
-    """
+    """Dynamic template selection using Registry"""
+    from ui_templates.registry import TemplateRegistryV2
     
-    # If domain already selected a template, use it
-    if state["selected_template"]:
-        return state
-    
-    from backend.ui_templates.registry import TemplateRegistry
-    
-    # Extract keywords from tabs and prompt
     keywords = []
-    
-    # From user prompt
     if state.get("user_prompt"):
         keywords.extend(state["user_prompt"].lower().split())
     
-    # From tab titles
     for tab in state.get("tabs", [])[:10]:
         title = tab.get("title", "").lower()
         keywords.extend(title.split())
     
-    # From tab content (first 100 chars)
-    for tab in state.get("tabs", [])[:5]:
-        content = tab.get("content", "")[:100].lower()
-        keywords.extend(content.split())
-    
-    # Remove common stop words
-    stop_words = {
-        "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
-        "of", "is", "are", "was", "were", "be", "been", "being", "have", "has",
-        "had", "do", "does", "did", "will", "would", "should", "could", "may",
-        "might", "must", "can", "this", "that", "these", "those", "with", "from"
-    }
+    stop_words = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "is", "are", "was", "were"}
     keywords = [k for k in keywords if k not in stop_words and len(k) > 3]
-    
-    # Use registry to find best template
-    registry = TemplateRegistry()
-    best_template = registry.find_best_template(
-        domain=state["primary_domain"],
-        keywords=list(set(keywords))[:20],  # Unique keywords, max 20
-        user_prompt=state.get("user_prompt", "")
-    )
-    
-    print(f"✓ Selected template: {best_template} for domain {state['primary_domain']}")
-    
-    return {
-        **state,
-        "selected_template": best_template,
-        "template_data": state.get("template_data", {})
-    }
-
-
-async def render_ui_node(state: AgentState) -> AgentState:
-    """
-    Node: Generate React/HTML code from template
-    Fetches Figma design and converts to code
-    """
-    
-    from backend.ui_templates.renderer import TemplateRenderer
-    
-    renderer = TemplateRenderer()
+    keywords = list(set(keywords))[:20]
     
     try:
-        react_code = await renderer.render(
-            template=state["selected_template"],
-            data=state["template_data"],
-            domain=state["primary_domain"]
+        registry = TemplateRegistryV2()
+        template_match = registry.find_best_template(
+            domain=state["primary_domain"] or "generic",
+            keywords=keywords,
+            user_prompt=state.get("user_prompt", "")
         )
+        
+        template_meta = registry.get_template_meta(state["primary_domain"] or "generic", template_match["template_name"])
         
         return {
             **state,
-            "react_code": react_code
+            "selected_template": template_match["template_name"],
+            "figma_node_id": template_meta.get("figma_node_id") if template_meta else "default",
+            "figma_preview_url": template_match["figma_url"]
         }
         
     except Exception as e:
-        print(f"UI rendering failed: {e}")
         return {
             **state,
-            "error": f"UI rendering failed: {str(e)}",
-            "react_code": None
+            "selected_template": "GenericDashboard",
+            "error": f"Registry fetch failed: {str(e)}"
         }
 
 
+async def render_ui_node(state: AgentState) -> AgentState:
+    """Convert selected template and data to React code"""
+    from figma import generate_dashboard_component
+    
+    react_code = generate_dashboard_component(
+        figma_node_id=state.get("figma_node_id", "unknown"),
+        figma_preview_url=state.get("figma_preview_url", ""),
+        template_name=state.get("selected_template", "Dashboard"),
+        template_data=state.get("template_data", {}),
+        domain=state.get("primary_domain", "generic")
+    )
+    
+    return {
+        **state,
+        "react_code": react_code
+    }
+
+
+async def codesandbox_check_node(state: AgentState) -> AgentState:
+    """
+    Real CodeSandbox Cloud Renderer Check.
+    Creates an actual sandbox using the CodeSandbox API and validates the render.
+    """
+    from codesandbox import CodeSandboxClient, SandboxResult
+    
+    react_code = state.get("react_code", "")
+    data = state.get("template_data", {})
+    attempts = state.get("validation_attempts", 0) + 1
+    
+    print(f"🔬 Running CodeSandbox Check (Attempt {attempts})...")
+    
+    # Basic validation first
+    if not react_code:
+        print("❌ CodeSandbox: No React code generated")
+        return {
+            **state,
+            "is_valid_ui": False,
+            "validation_attempts": attempts,
+            "error": "Generated code is empty."
+        }
+    
+    if not data:
+        print("❌ CodeSandbox: No template data")
+        return {
+            **state,
+            "is_valid_ui": False,
+            "validation_attempts": attempts,
+            "error": "No data injected into template."
+        }
+    
+    # Try to create a real CodeSandbox
+    try:
+        client = CodeSandboxClient()
+        
+        # Clean up the code for sandbox (ensure it's a valid module)
+        sandbox_code = react_code
+        
+        # If code uses "export const", convert to default export for sandbox
+        if "export default" not in sandbox_code:
+            # Extract component name and add default export
+            import re
+            match = re.search(r'export const (\w+)', sandbox_code)
+            if match:
+                component_name = match.group(1)
+                sandbox_code = sandbox_code + f"\n\nexport default {component_name};"
+        
+        result = await client.create_sandbox(
+            jsx_code=sandbox_code,
+            title=f"{state.get('selected_template', 'Dashboard')} - {state.get('primary_domain', 'generic')}"
+        )
+        
+        if result.success:
+            print(f"✅ CodeSandbox: UI Rendered Successfully!")
+            print(f"   Sandbox ID: {result.sandbox_id}")
+            print(f"   Preview: {result.preview_url}")
+            
+            return {
+                **state,
+                "is_valid_ui": True,
+                "validation_attempts": attempts,
+                "sandbox_id": result.sandbox_id,
+                "sandbox_embed_url": result.embed_url,
+                "sandbox_preview_url": result.preview_url,
+                "error": None
+            }
+        else:
+            print(f"❌ CodeSandbox: Render Failed! {result.error}")
+            return {
+                **state,
+                "is_valid_ui": False,
+                "validation_attempts": attempts,
+                "error": f"CodeSandbox creation failed: {result.error}"
+            }
+            
+    except Exception as e:
+        print(f"❌ CodeSandbox: Exception - {str(e)}")
+        
+        # If CodeSandbox API fails, fall back to basic validation
+        # (so the system doesn't completely break if API is down)
+        is_valid = "export" in react_code and len(react_code) > 100
+        
+        return {
+            **state,
+            "is_valid_ui": is_valid,
+            "validation_attempts": attempts,
+            "error": f"CodeSandbox API error (using fallback validation): {str(e)}" if not is_valid else None
+        }
+
+
+
+def should_continue(state: AgentState):
+    """Router for the renderer loop"""
+    if state["is_valid_ui"]:
+        return "end"
+    if state.get("validation_attempts", 0) >= 3:
+        return "end"
+    return "retry"
+
+
 def build_graph() -> StateGraph:
-    """Build the LangGraph state machine"""
+    """Build LangGraph with Check-and-Loop logic"""
     workflow = StateGraph(AgentState)
     
     # Define Nodes
     workflow.add_node("domain_logic", domain_logic_node)
     workflow.add_node("select_template", select_template_node)
     workflow.add_node("render", render_ui_node)
+    workflow.add_node("codesandbox_check", codesandbox_check_node)
     
     # Define Edges
     workflow.set_entry_point("domain_logic")
     workflow.add_edge("domain_logic", "select_template")
     workflow.add_edge("select_template", "render")
-    workflow.add_edge("render", END)
+    workflow.add_edge("render", "codesandbox_check")
+    
+    # Conditional Loop (The Renderer Check)
+    workflow.add_conditional_edges(
+        "codesandbox_check",
+        should_continue,
+        {
+            "retry": "domain_logic", # Loop back to agents to fix data/logic
+            "end": END
+        }
+    )
     
     return workflow.compile()

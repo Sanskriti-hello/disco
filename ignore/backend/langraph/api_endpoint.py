@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-from graph import build_graph
+from .graph import build_graph
 from domains import get_domain, domain_exists
 
 router = APIRouter()
@@ -29,6 +29,7 @@ class DomainSelectionRequest(BaseModel):
     user_prompt: Optional[str] = ""
     summary: Optional[str] = ""
     history: Optional[List[Dict[str, Any]]] = []
+    google_token: Optional[str] = None
 
 
 class DashboardConfigResponse(BaseModel):
@@ -39,8 +40,13 @@ class DashboardConfigResponse(BaseModel):
     template_url: Optional[str] = None
     figma_node_id: Optional[str] = None
     ui_props: Dict[str, Any]
+    react_code: Optional[str] = None
     widgets: List[Dict[str, Any]] = []
     error: Optional[str] = None
+    # CodeSandbox integration
+    sandbox_id: Optional[str] = None
+    sandbox_embed_url: Optional[str] = None
+    sandbox_preview_url: Optional[str] = None
 
 
 @router.post("/api/generate-dashboard", response_model=DashboardConfigResponse)
@@ -71,7 +77,14 @@ async def generate_dashboard(request: DomainSelectionRequest):
             "template_data": None,
             "react_code": None,
             "widgets": [],
-            "error": None
+            "error": None,
+            "access_token": request.google_token,
+            # CodeSandbox validation state
+            "is_valid_ui": False,
+            "validation_attempts": 0,
+            "sandbox_id": None,
+            "sandbox_embed_url": None,
+            "sandbox_preview_url": None
         }
         
         # 4. Run LangGraph workflow
@@ -97,7 +110,7 @@ async def generate_dashboard(request: DomainSelectionRequest):
         # 7. Fetch Figma template info (if available)
         figma_info = await get_figma_template_info(request.domain, template_name)
         
-        # 8. Return dashboard config
+        # 8. Return dashboard config with CodeSandbox URLs
         return DashboardConfigResponse(
             success=True,
             domain=request.domain,
@@ -105,7 +118,11 @@ async def generate_dashboard(request: DomainSelectionRequest):
             template_url=figma_info.get("preview_url") if figma_info else None,
             figma_node_id=figma_info.get("node_id") if figma_info else None,
             ui_props=template_data,
-            widgets=result_state.get("widgets", [])
+            react_code=result_state.get("react_code"),
+            widgets=result_state.get("widgets", []),
+            sandbox_id=result_state.get("sandbox_id"),
+            sandbox_embed_url=result_state.get("sandbox_embed_url"),
+            sandbox_preview_url=result_state.get("sandbox_preview_url")
         )
         
     except Exception as e:
@@ -138,18 +155,18 @@ async def get_template_preview(domain: str, template_name: str):
         raise HTTPException(500, f"Failed to fetch template: {str(e)}")
 
 
-    async def get_figma_template_info(domain: str, template_name: str) -> Optional[Dict[str, Any]]:
+async def get_figma_template_info(domain: str, template_name: str) -> Optional[Dict[str, Any]]:
     """
     Helper: Fetches Figma template info from templates registry
     Returns: {node_id, preview_url, description}
     """
     
     try:
-        from backend.ui_templates.registry import TemplateRegistry
-        from backend.figma import fetch_ui_template
+        from ui_templates.registry import TemplateRegistryV2
+        from figma import fetch_ui_template
         import os
         
-        registry = TemplateRegistry()
+        registry = TemplateRegistryV2()
         template_meta = registry.get_template_meta(domain, template_name)
         
         if not template_meta:
@@ -157,8 +174,7 @@ async def get_template_preview(domain: str, template_name: str):
             
         # If node_id is not already parsed (e.g. fresh from JSON), ensure it is
         if not template_meta.get("figma_node_id") and template_meta.get("figma_url"):
-             # Handled by get_templates_for_domain inside the registry usually, 
-             # but to be safe we can re-fetch
+             # Handled by get_templates_for_domain inside the registry usually
              registry.get_templates_for_domain(domain)
              template_meta = registry.get_template_meta(domain, template_name)
 

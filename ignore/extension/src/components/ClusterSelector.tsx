@@ -40,6 +40,21 @@ interface DomainResult {
     timestamp: number;
 }
 
+interface DashboardConfig {
+    success: boolean;
+    domain: string;
+    selected_template: string;
+    template_url?: string;
+    figma_node_id?: string;
+    ui_props: Record<string, unknown>;
+    react_code?: string;
+    widgets: unknown[];
+    error?: string;
+    sandbox_id?: string;
+    sandbox_embed_url?: string;
+    sandbox_preview_url?: string;
+}
+
 // Domain icons and colors
 const DOMAIN_CONFIG: Record<string, { icon: string; color: string; label: string }> = {
     study: { icon: "📚", color: "#8B5CF6", label: "Study" },
@@ -57,12 +72,14 @@ interface ClusterSelectorProps {
     isOpen: boolean;
     onClose: () => void;
     onDomainSelected?: (result: DomainResult) => void;
+    onDashboardGenerated?: (config: DashboardConfig) => void;
 }
 
 export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
     isOpen,
     onClose,
-    onDomainSelected
+    onDomainSelected,
+    onDashboardGenerated
 }) => {
     const [clusters, setClusters] = useState<Cluster[]>([]);
     const [loading, setLoading] = useState(false);
@@ -70,7 +87,8 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
     const [selectedCluster, setSelectedCluster] = useState<number | null>(null);
     const [customPrompt, setCustomPrompt] = useState("");
     const [domainResult, setDomainResult] = useState<DomainResult | null>(null);
-    const [step, setStep] = useState<"init" | "clusters" | "result">("init");
+    const [dashboardConfig, setDashboardConfig] = useState<DashboardConfig | null>(null);
+    const [step, setStep] = useState<"init" | "clusters" | "result" | "dashboard">("init");
 
     // Auto-analyze when popup opens
     useEffect(() => {
@@ -162,6 +180,43 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
         );
     };
 
+    // NEW: Generate Dashboard from Backend API
+    const handleGenerateDashboard = () => {
+        if (!chrome?.runtime?.sendMessage) {
+            setStatus("Extension not available.");
+            return;
+        }
+
+        setLoading(true);
+        setStatus("🚀 Generating AI Dashboard...");
+
+        chrome.runtime.sendMessage(
+            { action: "generateDashboard", userPrompt: customPrompt },
+            (response: unknown) => {
+                if (chrome.runtime?.lastError) {
+                    setLoading(false);
+                    setStatus(`Error: ${chrome.runtime.lastError.message}`);
+                    return;
+                }
+
+                const res = response as { success?: boolean; config?: DashboardConfig; error?: string; hint?: string };
+                setLoading(false);
+
+                if (res?.success && res.config) {
+                    setDashboardConfig(res.config);
+                    setStatus("✅ Dashboard generated!");
+                    setStep("dashboard");
+                    onDashboardGenerated?.(res.config);
+                } else {
+                    setStatus(res?.error || "Failed to generate dashboard");
+                    if (res?.hint) {
+                        setStatus(prev => `${prev} (${res.hint})`);
+                    }
+                }
+            }
+        );
+    };
+
     // Reset
     const handleReset = () => {
         setStep("init");
@@ -169,6 +224,7 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
         setSelectedCluster(null);
         setCustomPrompt("");
         setDomainResult(null);
+        setDashboardConfig(null);
         setStatus("Click 'Analyze Tabs' to start");
     };
 
@@ -183,7 +239,7 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
             />
 
             {/* Popup Container */}
-            <div className="relative w-[550px] max-h-[85vh] overflow-auto bg-[#0a0a1a] rounded-3xl border-2 border-[#6375c540] shadow-2xl">
+            <div className="relative w-[600px] max-h-[90vh] overflow-auto bg-[#0a0a1a] rounded-3xl border-2 border-[#6375c540] shadow-2xl">
                 {/* Header */}
                 <div className="sticky top-0 bg-[#0a0a1a] p-5 pb-3 border-b border-[#ffffff1a] flex items-center justify-between z-10">
                     <h2 className="font-['Hanken_Grotesk'] font-medium text-[#ffffffcc] text-xl">
@@ -303,7 +359,7 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
                         </div>
                     )}
 
-                    {/* Step 3: Show Result */}
+                    {/* Step 3: Domain Selected - Generate Dashboard */}
                     {step === "result" && domainResult && (
                         <div className="space-y-4 text-center">
                             <div className="text-5xl mb-2">
@@ -316,16 +372,58 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
 
                             <p className="text-[#ffffff80] text-sm">{domainResult.summary}</p>
 
-                            {/* Result JSON */}
-                            <div className="bg-[#1a1a2e] rounded-xl p-4 text-left">
-                                <p className="text-[#ffffff60] text-xs mb-2">Domain Result:</p>
-                                <pre className="text-[#10B981] text-xs overflow-auto">
-                                    {JSON.stringify({
-                                        domain: domainResult.domain,
-                                        tabCount: domainResult.tabs.length,
-                                        summary: domainResult.summary,
-                                        userPrompt: domainResult.userPrompt || null
-                                    }, null, 2)}
+                            <p className="text-[#ffffff60] text-xs">
+                                {domainResult.tabs.length} tabs will be used to generate your dashboard
+                            </p>
+
+                            <div className="flex gap-3 pt-4">
+                                <button
+                                    onClick={handleReset}
+                                    className="flex-1 py-3 rounded-xl border border-[#ffffff33] text-[#ffffffcc] font-medium hover:bg-[#ffffff11] transition-all text-sm"
+                                >
+                                    ← Start Over
+                                </button>
+                                <button
+                                    onClick={handleGenerateDashboard}
+                                    disabled={loading}
+                                    className="flex-1 py-3 rounded-xl bg-gradient-to-r from-[#10B981] to-[#06B6D4] text-white font-semibold hover:opacity-90 disabled:opacity-50 transition-all text-sm"
+                                >
+                                    {loading ? "Generating..." : "🚀 Generate Dashboard"}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Step 4: Dashboard Generated */}
+                    {step === "dashboard" && dashboardConfig && (
+                        <div className="space-y-4">
+                            <div className="text-center">
+                                <div className="text-5xl mb-2">✨</div>
+                                <h3 className="text-[#ffffffcc] text-xl font-semibold">
+                                    Dashboard Ready!
+                                </h3>
+                                <p className="text-[#ffffff80] text-sm">
+                                    Template: {dashboardConfig.selected_template}
+                                </p>
+                            </div>
+
+                            {dashboardConfig.sandbox_embed_url && (
+                                <div className="w-full h-[400px] border border-[#ffffff1a] rounded-xl overflow-hidden mb-4">
+                                    <iframe
+                                        src={dashboardConfig.sandbox_embed_url}
+                                        style={{ width: '100%', height: '100%', border: 0 }}
+                                        title="Dashboard Preview"
+                                        allow="accelerometer; ambient-light-sensor; camera; encrypted-media; geolocation; gyroscope; hid; microphone; midi; payment; usb; vr; xr-spatial-tracking"
+                                        sandbox="allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"
+                                    />
+                                </div>
+                            )}
+
+                            {/* Dashboard Data Preview */}
+                            <div className="bg-[#1a1a2e] rounded-xl p-4">
+                                <p className="text-[#ffffff60] text-xs mb-2">Generated UI Props:</p>
+                                <pre className="text-[#10B981] text-xs overflow-auto max-h-40">
+                                    {JSON.stringify(dashboardConfig.ui_props, null, 2)}
                                 </pre>
                             </div>
 
@@ -333,7 +431,7 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
                                 onClick={handleReset}
                                 className="w-full py-3 rounded-xl border border-[#ffffff33] text-[#ffffffcc] font-medium hover:bg-[#ffffff11] transition-all text-sm"
                             >
-                                ← Start Over
+                                ← Generate Another
                             </button>
                         </div>
                     )}
@@ -344,3 +442,4 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
 };
 
 export default ClusterSelector;
+

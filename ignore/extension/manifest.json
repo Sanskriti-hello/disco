@@ -11,8 +11,18 @@
     "scripting",
     "activeTab",
     "history",
-    "storage"
+    "storage",
+    "identity"
   ],
+  "oauth2": {
+    "client_id": "276787019429-oi9h181975btf3qop3s4fl1ed7lnc83c.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/calendar.readonly",
+      "https://www.googleapis.com/auth/drive.readonly",
+      "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/youtube.readonly"
+    ]
+  },
   "host_permissions": [
     "<all_urls>"
   ],
