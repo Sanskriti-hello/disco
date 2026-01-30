@@ -32,7 +32,7 @@ class DataInjector:
         
         Returns: Modified React code with data injected
         """
-        print(f"💉 Injecting data into template: {template_id}")
+        print(f"[Injecting] Injecting data into template: {template_id}")
         
         # Route to specialized injector
         if template_id == "code-1":
@@ -44,7 +44,7 @@ class DataInjector:
         elif template_id == "shopping-1":
             return self._inject_shopping(react_code, data)
         else:
-            print(f"⚠️ No specialized injector for {template_id}, using generic")
+            print(f"[WARNING] No specialized injector for {template_id}, using generic")
             return self._inject_generic_fallback(react_code, data)
     
     def _inject_code_template(self, code: str, data: Dict) -> str:
