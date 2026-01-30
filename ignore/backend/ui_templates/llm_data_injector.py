@@ -4,8 +4,14 @@ Uses Gemini to intelligently inject data into React components while preserving 
 """
 
 import os
+import sys
 import json
 from typing import Dict, Any, Optional
+from pathlib import Path
+
+# Add current directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent))
+
 import google.generativeai as genai
 
 
@@ -16,10 +22,10 @@ class LLMDataInjector:
         self.api_key = api_key or os.getenv("GEMINI_API_KEY")
         if self.api_key:
             genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
+            self.model = genai.GenerativeModel('gemini-2.5-flash')
         else:
             self.model = None
-            print("⚠️ No GEMINI_API_KEY found - LLM injection disabled, using fallback")
+            print("[WARNING] No GEMINI_API_KEY found - LLM injection disabled, using fallback")
     
     async def inject_data_with_llm(
         self,
@@ -40,8 +46,8 @@ class LLMDataInjector:
         Returns: Modified React component with data injected
         """
         if not self.model:
-            print("⚠️ Falling back to regex injection (no LLM)")
-            from ui_templates.data_injector import DataInjector
+            print("[WARNING] Falling back to regex injection (no LLM)")
+            from data_injector import DataInjector
             injector = DataInjector()
             return injector.inject_data(react_code, template_id, data, theme_config)
         
@@ -53,17 +59,17 @@ class LLMDataInjector:
             
             # Validate the injected code
             if self._validate_injected_code(injected_code, react_code):
-                print("✅ LLM injection successful")
+                print("[SUCCESS] LLM injection successful")
                 return injected_code
             else:
-                print("⚠️  LLM injection validation failed, using fallback")
-                from ui_templates.data_injector import DataInjector
+                print("[WARNING] LLM injection validation failed, using fallback")
+                from data_injector import DataInjector
                 injector = DataInjector()
                 return injector.inject_data(react_code, template_id, data, theme_config)
                 
         except Exception as e:
-            print(f"❌ LLM injection error: {e}, using fallback")
-            from ui_templates.data_injector import DataInjector
+            print(f"[ERROR] LLM injection error: {e}, using fallback")
+            from data_injector import DataInjector
             injector = DataInjector()
             return injector.inject_data(react_code, template_id, data, theme_config)
     
