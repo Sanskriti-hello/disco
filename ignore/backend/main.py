@@ -1,6 +1,11 @@
 # backend/main.py - Successfully configured with Google OAuth and Figma-to-React generation
 import sys
 import os
+
+# Load environment variables from .env file FIRST
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 

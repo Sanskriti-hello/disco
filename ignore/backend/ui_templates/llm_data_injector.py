@@ -41,7 +41,7 @@ class LLMDataInjector:
         """
         if not self.model:
             print("⚠️ Falling back to regex injection (no LLM)")
-            from data_injector import DataInjector
+            from ui_templates.data_injector import DataInjector
             injector = DataInjector()
             return injector.inject_data(react_code, template_id, data, theme_config)
         
@@ -57,13 +57,13 @@ class LLMDataInjector:
                 return injected_code
             else:
                 print("⚠️  LLM injection validation failed, using fallback")
-                from data_injector import DataInjector
+                from ui_templates.data_injector import DataInjector
                 injector = DataInjector()
                 return injector.inject_data(react_code, template_id, data, theme_config)
                 
         except Exception as e:
             print(f"❌ LLM injection error: {e}, using fallback")
-            from data_injector import DataInjector
+            from ui_templates.data_injector import DataInjector
             injector = DataInjector()
             return injector.inject_data(react_code, template_id, data, theme_config)
     

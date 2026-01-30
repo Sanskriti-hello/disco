@@ -14,7 +14,8 @@ class SandboxBuilder:
     """Builds complete CodeSandbox file structures from local templates"""
     
     def __init__(self, templates_dir: Optional[Path] = None):
-        self.templates_dir = templates_dir or Path(__file__).parent / "components"
+        # Templates are directly in ui_templates/, NOT in a components subfolder
+        self.templates_dir = templates_dir or Path(__file__).parent
     
     def build_complete_sandbox(
         self,

@@ -184,7 +184,14 @@ class ShoppingDomain(BaseDomain):
             # Extract Amazon products
             if "amazon" in mcp_data:
                 amazon_data = mcp_data["amazon"]
-                products_list = amazon_data.get("data", {}).get("products", [])
+                # Handle direct data or nested data structure
+                products_list = []
+                if "data" in amazon_data and "products" in amazon_data["data"]:
+                    products_list = amazon_data["data"]["products"]
+                elif "products" in amazon_data:
+                    products_list = amazon_data["products"]
+                
+                print(f"DEBUG: Found {len(products_list)} products from Amazon MCP")
                 
                 for product in products_list[:12]:
                     products.append({

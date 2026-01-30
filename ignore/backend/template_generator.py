@@ -8,7 +8,7 @@ from typing import Dict, Any, List
 from pathlib import Path
 
 
-def generate_dashboard_from_template(
+async def generate_dashboard_from_template(
     domain: str,
     template_data: Dict[str, Any],
     user_context: Dict[str, Any]
@@ -24,39 +24,35 @@ def generate_dashboard_from_template(
     Returns: Complete React component code ready for CodeSandbox
     """
     from ui_templates.template_loader import TemplateLoader
-    from ui_templates.data_injector import DataInjector
+    from domains import get_domain
     
     loader = TemplateLoader()
-    injector = DataInjector()
     
-    # 1. Select best template based on context
+    
+    # 1. Select the best template
+    # figma_url is deprecated in loader.select_template, using context instead
     template_info = loader.select_template(
-        domain=domain,
+        domain=domain, 
         keywords=user_context.get("keywords", []),
         user_prompt=user_context.get("user_prompt", ""),
         tab_count=user_context.get("tab_count", 0),
         tab_urls=user_context.get("tab_urls", [])
     )
+    print(f"🎨 Selected template: {template_info['template_id']} (score: {template_info['score']:.2f})")
     
-    print(f"🎨 Selected template: {template_info['template_id']}")
-    print(f"   Name: {template_info['template_name']}")
-    print(f"   Score: {template_info['score']:.2f}")
-    print(f"   Features: {', '.join(template_info['features'][:3])}")
-    
-    # 2. Validate data matches template requirements
-    is_valid, missing = loader.validate_data_schema(
-        template_info['template_id'],
-        template_data
-    )
-    
-    if not is_valid:
-        print(f"⚠️ Missing required fields: {missing}")
-        print(f"   Available fields: {list(template_data.keys())}")
-        # Add default values for missing fields
-        for field in missing:
-            if field not in template_data:
-                template_data[field] = []
-                print(f"   Added empty {field}")
+    # 2. Extract specific data needed for the template
+    try:
+        domain_agent = get_domain(domain)
+        # Transform general MCP data into template-specific props
+        template_props = domain_agent.prepare_template_data(
+            template_info['template_id'],
+            template_data,
+            "" # Empty response for now as injection happens via LLM
+        )
+        print(f"📦 Prepared template data with keys: {list(template_props.keys())}")
+    except Exception as e:
+        print(f"⚠️ Failed to prepare template data: {e}")
+        template_props = template_data
     
     # 3. Load template component from disk
     try:
@@ -71,39 +67,39 @@ def generate_dashboard_from_template(
     
     # 4. Inject data into template using LLM
     try:
-        # Try LLM-based injection first
+        # Try LLM-based injection
         from ui_templates.llm_data_injector import LLMDataInjector
         llm_injector = LLMDataInjector()
         
-        # Use async injection
-        import asyncio
-        if asyncio.get_event_loop().is_running():
-            # Already in async context
-            final_code = await llm_injector.inject_data_with_llm(
-                react_code=react_code,
-                template_id=template_info['template_id'],
-                data=template_data,
-                theme_config=theme_config
-            )
-        else:
-            # Create new event loop
-            final_code = asyncio.run(llm_injector.inject_data_with_llm(
-                react_code=react_code,
-                template_id=template_info['template_id'],
-                data=template_data,
-                theme_config=theme_config
-            ))
+        print(f"💉 Injecting data using LLM into: {template_info['template_id']}")
+        final_code = await llm_injector.inject_data_with_llm(
+            react_code=react_code,
+            template_id=template_info['template_id'],
+            data=template_props,
+            theme_config=theme_config
+        )
         
         print(f"✅ Generated {len(final_code)} chars of React code (LLM injection)")
         
-        # Ensure the component exports properly for CodeSandbox
+        # Ensure the component exports properly
         final_code = ensure_proper_export(final_code, template_info)
         
         return final_code
         
     except Exception as e:
-        print(f"❌ Data injection failed: {e}")
-        return generate_fallback_component(template_data, domain)
+        print(f"❌ LLM Data injection failed: {e}. Falling back to regex.")
+        try:
+            from ui_templates.data_injector import DataInjector
+            injector = DataInjector()
+            final_code = injector.inject_data(
+                react_code=react_code,
+                template_id=template_info['template_id'],
+                data=template_props,
+                theme_config=theme_config
+            )
+            return ensure_proper_export(final_code, template_info)
+        except:
+            return generate_fallback_component(template_data, domain)
 
 
 def ensure_proper_export(react_code: str, template_info: Dict) -> str:

@@ -429,21 +429,58 @@ class TravelDomain(BaseDomain):
         
         return has_travel_data
     
-    def get_follow_up_question(self, mcp_data: Dict[str, Any]) -> Optional[str]:
-        """
-        Specific follow-up questions for travel planning.
-        """
+    def prepare_template_data(
+        self, 
+        template_id: str, 
+        mcp_data: Dict[str, Any], 
+        llm_response: str
+    ) -> Dict[str, Any]:
+        """Transform MCP data for template-specific rendering"""
         
-        if "location" not in mcp_data:
-            return "Where are you traveling from? I need your origin city to search for the best travel options."
+        props = self.prepare_ui_props(mcp_data, llm_response)
         
-        if "google_workspace" not in mcp_data:
-            return "Would you like me to check your Google Calendar to find available travel dates? This helps avoid conflicts."
-        
-        if "search" not in mcp_data or not mcp_data["search"].get("results"):
-            return "I need more details to help you plan this trip. Where do you want to go, when, and what's your approximate budget?"
-        
-        return "What's your destination, preferred travel dates, and budget range?"
+        if template_id == "TripItinerary":
+            return {
+                "title": "Your Trip Itinerary",
+                "days": self._generate_itinerary_days(mcp_data, llm_response),
+                "map_center": props.get("origin", {}).get("coordinates", [0, 0]),
+                "summary": llm_response
+            }
+        elif template_id == "FlightCard":
+            return {
+                "title": "Available Flights",
+                "flights": props.get("flights", []),
+                "origin": props.get("origin", {}).get("city", "Origin"),
+                "destination": "Destination" # Could be extracted from prompt
+            }
+        elif template_id == "HotelCard":
+            return {
+                "title": "Top Hotel Picks",
+                "hotels": props.get("hotels", []),
+                "city": props.get("origin", {}).get("city", "City")
+            }
+        else:
+            # Fallback to TravelDashboard or Generic
+            return {
+                "title": "Travel Dashboard",
+                "flights": props.get("flights", []),
+                "hotels": props.get("hotels", []),
+                "itinerary": props.get("itinerary", []),
+                "context": props.get("context", {}),
+                "summary": llm_response
+            }
+
+    def _generate_itinerary_days(self, mcp_data: Dict, llm_response: str) -> List[Dict]:
+        """Helper to generate itinerary days from LLM response or search"""
+        days = []
+        # Simple extraction from LLM response for now
+        # In a real app, this would be more sophisticated
+        days.append({
+            "day": 1,
+            "title": "Arrival & Exploration",
+            "activities": ["Check-in", "Local dinner", "Walk around city center"]
+        })
+        return days
 
 '''
 # ========== QUICK TEST ==========

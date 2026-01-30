@@ -85,3 +85,34 @@ class EntertainmentDomain(BaseDomain):
 
     def get_follow_up_question(self, mcp_data: Dict[str, Any]) -> Optional[str]:
         return "What movie, artist, or video are you looking for?"
+
+    def prepare_template_data(
+        self, 
+        template_id: str, 
+        mcp_data: Dict[str, Any], 
+        llm_response: str
+    ) -> Dict[str, Any]:
+        """Transform MCP data for template-specific rendering"""
+        
+        props = self.prepare_ui_props(mcp_data, llm_response)
+        
+        if template_id == "MovieCard":
+            return {
+                "title": "Movie Insights",
+                "movies": props.get("movies", []),
+                "summary": llm_response
+            }
+        elif template_id == "VideoGrid":
+            return {
+                "title": "Trending Videos",
+                "videos": props.get("videos", []),
+                "channel": "Featured"
+            }
+        else:
+            return {
+                "title": f"Entertainment: {llm_response[:30]}...",
+                "videos": props.get("videos", []),
+                "movies": props.get("movies", []),
+                "music": props.get("music", {}),
+                "summary": llm_response
+            }

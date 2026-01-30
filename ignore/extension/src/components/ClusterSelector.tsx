@@ -227,8 +227,9 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
                     setStep("dashboard");
                     onDashboardGenerated?.(res.config);
 
-                    // AUTO-OPEN the final output dashboard
-                    window.open(chrome.runtime.getURL('dashboard.html'), '_blank');
+                    // Dashboard generated, config saved to state and reported via callback
+                    // Do NOT navigate away from the current page as per user request
+                    console.log("Dashboard generation complete, staying on current page.");
                 } else {
                     setStatus(res?.error || "Failed to generate dashboard");
                     if (res?.hint) {

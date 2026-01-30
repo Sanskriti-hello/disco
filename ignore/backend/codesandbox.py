@@ -132,11 +132,14 @@ body {
                     data = resp.json()
                     sandbox_id = data.get("sandbox_id")
                     if sandbox_id:
+                        # Use preview-only embed to avoid SSE deprecation issues
+                        # &view=preview shows only the preview pane (no editor)
+                        # &module= can be omitted to skip editor entirely
                         return SandboxResult(
                             success=True,
                             sandbox_id=sandbox_id,
-                            embed_url=f"https://codesandbox.io/embed/{sandbox_id}?fontsize=14&hidenavigation=1&theme=dark",
-                            preview_url=f"https://codesandbox.io/p/sandbox/{sandbox_id}"
+                            embed_url=f"https://codesandbox.io/embed/{sandbox_id}?fontsize=14&hidenavigation=1&theme=dark&view=preview&codemirror=1",
+                            preview_url=f"https://codesandbox.io/s/{sandbox_id}"
                         )
                     else:
                         return SandboxResult(success=False, error="No sandbox_id in response")

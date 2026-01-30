@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { ClusterSelector } from "../../components/ClusterSelector";
 
 // Inline SVG icons to avoid 403 errors from external sources
@@ -61,6 +61,71 @@ const Icons = {
 
 export const FinanceAIDashboard = (): JSX.Element => {
   const [isClusterSelectorOpen, setIsClusterSelectorOpen] = useState(false);
+  const [dashboardConfig, setDashboardConfig] = useState<any>(null);
+
+  // If dashboard is generated, show the dashboard screen
+  if (dashboardConfig) {
+    return (
+      <div className="bg-[#050510] min-h-screen w-full flex flex-col p-8">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold text-white">AI Generated Dashboard</h1>
+          <button
+            onClick={() => setDashboardConfig(null)}
+            className="px-4 py-2 bg-[#6375c520] border border-[#6375c5] rounded-lg text-[#6375c5] hover:bg-[#6375c540]"
+          >
+            ← Back to Home
+          </button>
+        </div>
+
+        <div className="flex-1 bg-[#6375c510] rounded-3xl backdrop-blur-xl border border-[#ffffff10] overflow-hidden">
+          {dashboardConfig.sandbox_embed_url ? (
+            <iframe
+              src={dashboardConfig.sandbox_embed_url}
+              className="w-full h-full border-none"
+              title="Dashboard"
+            />
+          ) : (
+            <div className="p-8 overflow-auto h-full">
+              <div className="mb-6">
+                <span className="px-3 py-1 bg-[#6375c533] text-[#6375c5] rounded-full text-xs font-bold border border-[#6375c555]">
+                  {dashboardConfig.domain.toUpperCase()}
+                </span>
+                <h2 className="text-4xl font-bold text-white mt-2">{dashboardConfig.selected_template}</h2>
+              </div>
+
+              {/* Simplified rendering of ui_props since we cannot execute React code string here easily */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {dashboardConfig.ui_props.products?.map((p: any, i: number) => (
+                  <div key={i} className="bg-[#ffffff05] border border-[#ffffff10] rounded-2xl p-6 hover:border-[#6375c555] transition-all">
+                    <img src={p.image_url || p.image} alt={p.title} className="w-full h-40 object-contain mb-4 rounded-lg" />
+                    <h3 className="text-white font-semibold text-lg line-clamp-2">{p.title}</h3>
+                    <p className="text-[#6375c5] font-bold text-xl mt-2">{p.price}</p>
+                    {p.rating && <p className="text-[#F59E0B] text-sm">★ {p.rating} ({p.review_count} reviews)</p>}
+                    <a href={p.url} target="_blank" rel="noopener noreferrer" className="inline-block mt-4 text-[#ffffff66] hover:text-white text-sm">View Store →</a>
+                  </div>
+                ))}
+
+                {/* Links fallback */}
+                {dashboardConfig.ui_props.links?.map((l: any, i: number) => (
+                  <div key={i} className="bg-[#ffffff05] border border-[#ffffff10] rounded-2xl p-6">
+                    <h3 className="text-white font-semibold">{l.title}</h3>
+                    <p className="text-[#ffffff66] text-sm mt-2">{l.summary}</p>
+                    <a href={l.url} target="_blank" rel="noopener noreferrer" className="inline-block mt-4 text-[#6375c5] hover:underline">Read more</a>
+                  </div>
+                ))}
+              </div>
+
+              {!dashboardConfig.ui_props.products && !dashboardConfig.ui_props.links && (
+                <pre className="text-xs text-green-400 bg-black/50 p-4 rounded-xl overflow-auto">
+                  {JSON.stringify(dashboardConfig.ui_props, null, 2)}
+                </pre>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const chartData = [
     { month: "Mon", height: 35 },
@@ -283,6 +348,10 @@ export const FinanceAIDashboard = (): JSX.Element => {
       <ClusterSelector
         isOpen={isClusterSelectorOpen}
         onClose={() => setIsClusterSelectorOpen(false)}
+        onDashboardGenerated={(config) => {
+          setDashboardConfig(config);
+          setIsClusterSelectorOpen(false);
+        }}
         onDomainSelected={(result) => {
           console.log('Domain selected:', result);
         }}

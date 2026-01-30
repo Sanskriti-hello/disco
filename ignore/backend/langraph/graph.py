@@ -163,7 +163,7 @@ async def render_ui_node(state: AgentState) -> AgentState:
     }
     
     try:
-        react_code = generate_dashboard_from_template(
+        react_code = await generate_dashboard_from_template(
             domain=state.get("primary_domain", "generic"),
             template_data=state.get("template_data", {}),
             user_context=user_context
@@ -224,77 +224,34 @@ async def codesandbox_check_node(state: AgentState) -> AgentState:
             "error": "No data injected into template."
         }
     
-    # Try to create a real CodeSandbox with complete template structure
-    try:
-        from ui_templates.sandbox_builder import SandboxBuilder
-        client = CodeSandboxClient()
-        builder = SandboxBuilder()
-        
-        # Clean up the code for sandbox (ensure it's a valid module)
-        sandbox_code = react_code
-        
-        # If code uses "export const", convert to default export for sandbox
-        if "export default" not in sandbox_code:
-            # Extract component name and add default export
-            import re
-            match = re.search(r'export const (\w+)', sandbox_code)
-            if match:
-                component_name = match.group(1)
-                sandbox_code = sandbox_code + f"\n\nexport default {component_name};"
-        
-        # Build complete file structure
-        print("📦 Building complete sandbox with all template files...")
-        
-        template_id = state.get("selected_template", "generic-1")
-        complete_files = builder.build_complete_sandbox(
-            template_id=template_id,
-            injected_component=sandbox_code,
-            data=data
-        )
-        
-        print(f"   Created {len(complete_files)} files for sandbox")
-        
-        # Create sandbox with complete structure
-        result = await client.create_sandbox(
-            title=f"{state.get('selected_template', 'Dashboard')} - {state.get('primary_domain', 'generic')}",
-            complete_files=complete_files
-        )
-        
-        if result.success:
-            print(f"✅ CodeSandbox: UI Rendered Successfully!")
-            print(f"   Sandbox ID: {result.sandbox_id}")
-            print(f"   Preview: {result.preview_url}")
-            
-            return {
-                **state,
-                "is_valid_ui": True,
-                "validation_attempts": attempts,
-                "sandbox_id": result.sandbox_id,
-                "sandbox_embed_url": result.embed_url,
-                "sandbox_preview_url": result.preview_url,
-                "error": None
-            }
-        else:
-            print(f"❌ CodeSandbox: Render Failed! {result.error}")
-            return {
-                **state,
-                "is_valid_ui": False,
-                "validation_attempts": attempts,
-                "error": f"CodeSandbox creation failed: {result.error}"
-            }
-            
-    except Exception as e:
-        print(f"❌ CodeSandbox: Exception - {str(e)}")
-        
-        # If CodeSandbox API fails, fall back to basic validation
-        # (so the system doesn't completely break if API is down)
-        is_valid = "export" in react_code and len(react_code) > 100
+    # Skip CodeSandbox (SSE deprecated) - use fallback dashboard instead
+    # The fallback dashboard renders data locally without external dependencies
+    print("📦 Preparing dashboard data for local rendering...")
+    
+    # Simple validation - check code has valid structure
+    is_valid = "export" in react_code and len(react_code) > 100
+    
+    if is_valid:
+        print(f"✅ React code validated ({len(react_code)} chars)")
+        print(f"   Using local fallback dashboard for reliable rendering")
         
         return {
             **state,
-            "is_valid_ui": is_valid,
+            "is_valid_ui": True,
             "validation_attempts": attempts,
-            "error": f"CodeSandbox API error (using fallback validation): {str(e)}" if not is_valid else None
+            # No sandbox URLs - the fallback dashboard will render the data
+            "sandbox_id": None,
+            "sandbox_embed_url": None,
+            "sandbox_preview_url": None,
+            "error": None
+        }
+    else:
+        print(f"❌ React code validation failed")
+        return {
+            **state,
+            "is_valid_ui": False,
+            "validation_attempts": attempts,
+            "error": "Generated React code is invalid"
         }
 
 
