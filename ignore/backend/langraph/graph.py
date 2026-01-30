@@ -224,9 +224,11 @@ async def codesandbox_check_node(state: AgentState) -> AgentState:
             "error": "No data injected into template."
         }
     
-    # Try to create a real CodeSandbox
+    # Try to create a real CodeSandbox with complete template structure
     try:
+        from ui_templates.sandbox_builder import SandboxBuilder
         client = CodeSandboxClient()
+        builder = SandboxBuilder()
         
         # Clean up the code for sandbox (ensure it's a valid module)
         sandbox_code = react_code
@@ -240,9 +242,22 @@ async def codesandbox_check_node(state: AgentState) -> AgentState:
                 component_name = match.group(1)
                 sandbox_code = sandbox_code + f"\n\nexport default {component_name};"
         
+        # Build complete file structure
+        print("📦 Building complete sandbox with all template files...")
+        
+        template_id = state.get("selected_template", "generic-1")
+        complete_files = builder.build_complete_sandbox(
+            template_id=template_id,
+            injected_component=sandbox_code,
+            data=data
+        )
+        
+        print(f"   Created {len(complete_files)} files for sandbox")
+        
+        # Create sandbox with complete structure
         result = await client.create_sandbox(
-            jsx_code=sandbox_code,
-            title=f"{state.get('selected_template', 'Dashboard')} - {state.get('primary_domain', 'generic')}"
+            title=f"{state.get('selected_template', 'Dashboard')} - {state.get('primary_domain', 'generic')}",
+            complete_files=complete_files
         )
         
         if result.success:

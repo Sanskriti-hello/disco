@@ -38,23 +38,37 @@ class CodeSandboxClient:
     
     async def create_sandbox(
         self,
-        jsx_code: str,
+        jsx_code: Optional[str] = None,
         title: Optional[str] = None,
-        additional_files: Optional[Dict[str, str]] = None
+        additional_files: Optional[Dict[str, str]] = None,
+        complete_files: Optional[Dict[str, Dict[str, str]]] = None
     ) -> SandboxResult:
         """
         Create a new CodeSandbox from React JSX code asynchronously.
+        
+        Args:
+            jsx_code: Single JSX component (legacy mode)
+            title: Sandbox title
+            additional_files: Additional files to include (legacy mode)
+            complete_files: Complete file structure from SandboxBuilder (NEW)
+        
+        Returns: SandboxResult with sandbox URLs
         """
         title = title or f"GenTab Dashboard - {datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
-        # Build the files structure for the Define API
-        # The Define API uses 'content' inside each file object
-        files = {
-            "App.jsx": {
-                "content": jsx_code
-            },
-            "index.js": {
-                "content": """import React from 'react';
+        # NEW: Use complete_files if provided (full template structure)
+        if complete_files:
+            print("📦 Using complete template file structure")
+            files = complete_files
+        else:
+            # LEGACY: Build basic structure from single JSX file
+            print("⚠️ Using legacy single-file mode")
+            files = {
+                "App.jsx": {
+                    "content": jsx_code
+                },
+                "index.js": {
+                    "content": """import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './styles.css';
@@ -65,9 +79,9 @@ root.render(
     <App />
   </React.StrictMode>
 );"""
-            },
-            "styles.css": {
-                "content": """/* Base styles for GenTab Dashboard */
+                },
+                "styles.css": {
+                    "content": """/* Base styles for GenTab Dashboard */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -76,26 +90,26 @@ body {
   min-height: 100vh;
 }
 """
-            },
-            "package.json": {
-                "content": json.dumps({
-                    "name": "gentab-dashboard",
-                    "version": "1.0.0",
-                    "main": "index.js",
-                    "dependencies": {
-                        "react": "^18.2.0",
-                        "react-dom": "^18.2.0",
-                        "lucide-react": "latest",
-                        "clsx": "latest",
-                        "tailwind-merge": "latest"
-                    }
-                }, indent=2)
+                },
+                "package.json": {
+                    "content": json.dumps({
+                        "name": "gentab-dashboard",
+                        "version": "1.0.0",
+                        "main": "index.js",
+                        "dependencies": {
+                            "react": "^18.2.0",
+                            "react-dom": "^18.2.0",
+                            "lucide-react": "latest",
+                            "clsx": "latest",
+                            "tailwind-merge": "latest"
+                        }
+                    }, indent=2)
+                }
             }
-        }
-        
-        if additional_files:
-            for filename, code in additional_files.items():
-                files[filename] = {"content": code}
+            
+            if additional_files:
+                for filename, code in additional_files.items():
+                    files[filename] = {"content": code}
         
         payload = {
             "files": files

@@ -69,16 +69,32 @@ def generate_dashboard_from_template(
         # Fallback to simple component
         return generate_fallback_component(template_data, domain)
     
-    # 4. Inject data into template
+    # 4. Inject data into template using LLM
     try:
-        final_code = injector.inject_data(
-            react_code=react_code,
-            template_id=template_info['template_id'],
-            data=template_data,
-            theme_config=theme_config
-        )
+        # Try LLM-based injection first
+        from ui_templates.llm_data_injector import LLMDataInjector
+        llm_injector = LLMDataInjector()
         
-        print(f"✅ Generated {len(final_code)} chars of React code")
+        # Use async injection
+        import asyncio
+        if asyncio.get_event_loop().is_running():
+            # Already in async context
+            final_code = await llm_injector.inject_data_with_llm(
+                react_code=react_code,
+                template_id=template_info['template_id'],
+                data=template_data,
+                theme_config=theme_config
+            )
+        else:
+            # Create new event loop
+            final_code = asyncio.run(llm_injector.inject_data_with_llm(
+                react_code=react_code,
+                template_id=template_info['template_id'],
+                data=template_data,
+                theme_config=theme_config
+            ))
+        
+        print(f"✅ Generated {len(final_code)} chars of React code (LLM injection)")
         
         # Ensure the component exports properly for CodeSandbox
         final_code = ensure_proper_export(final_code, template_info)
