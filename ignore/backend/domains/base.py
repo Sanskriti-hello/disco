@@ -4,16 +4,7 @@ from datetime import datetime
 import os
 
 # Import MCP Tools for data fetching
-from mcp_tools.search import SearchClient
-from mcp_tools.arxiv import ArxivClient
-from mcp_tools.Loc_Weath_Dis import places_search, lookup_weather, google_compute_route
-from mcp_tools.google_workspace import GoogleWorkspaceMCP
-from mcp_tools.youtube import YouTubeMCP
-from mcp_tools.spotify import SpotifyClient
-from mcp_tools.movie import MovieClient
-from mcp_tools.news import NewsClient
-from mcp_tools.amazon import AmazonClient
-from mcp_tools.exchange_rate import FinancialClient
+# MCP Tools will be imported lazily in fetch_mcp_data
 
 @dataclass
 class DomainResponse:
@@ -73,13 +64,17 @@ class BaseDomain:
         for mcp in mcps:
             try:
                 if mcp == "search":
+                    from mcp_tools.search import SearchClient
                     results["search"] = SearchClient().web_search(prompt)
                 elif mcp == "location":
+                    from mcp_tools.Loc_Weath_Dis import places_search
                     results["location"] = places_search(prompt)
                 elif mcp == "weather":
+                    from mcp_tools.Loc_Weath_Dis import lookup_weather
                     # For weather, we normally need coordinates. Mocking for now.
                     results["weather"] = lookup_weather(28.6139, 77.2090) 
                 elif mcp == "google_workspace":
+                    from mcp_tools.google_workspace import GoogleWorkspaceMCP
                     client = GoogleWorkspaceMCP(access_token=token)
                     results["google_workspace"] = {
                         "calendar": client.get_calendar_events(),
@@ -87,19 +82,26 @@ class BaseDomain:
                         "drive": client.search_drive(prompt)
                     }
                 elif mcp == "youtube":
+                    from mcp_tools.youtube import YouTubeMCP
                     client = YouTubeMCP(access_token=token)
                     results["youtube"] = client.search_videos(prompt)
                 elif mcp == "amazon":
+                    from mcp_tools.amazon import AmazonClient
                     results["amazon"] = AmazonClient().search_products(prompt)
                 elif mcp == "spotify":
+                    from mcp_tools.spotify import SpotifyClient
                     results["spotify"] = SpotifyClient().search(prompt)
                 elif mcp == "movie":
+                    from mcp_tools.movie import MovieClient
                     results["movie"] = MovieClient().search_by_title(title=prompt)
                 elif mcp == "news":
+                    from mcp_tools.news import NewsClient
                     results["news"] = NewsClient().search_news(prompt)
                 elif mcp == "financial":
+                    from mcp_tools.exchange_rate import FinancialClient
                     results["financial"] = FinancialClient().convert_currency("USD", "INR", 1.0)
                 elif mcp == "arxiv":
+                    from mcp_tools.arxiv import ArxivClient
                     results["arxiv"] = ArxivClient().search_papers(prompt)
             except Exception as e:
                 print(f"Error fetching {mcp}: {e}")

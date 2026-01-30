@@ -161,6 +161,20 @@ class TemplateRegistryV2:
                         "keywords": ["link", "bookmark", "grid", "collection"],
                         "figma_file_key": "PxLCYxuApLFWLVOiCeaCd6",
                         "figma_node_id": "0:1"
+                    },
+                    "NewsDashboard": {
+                        "description": "List of news articles",
+                        "best_for": ["news", "articles", "headlines"],
+                        "keywords": ["news", "article", "headline", "breaking"],
+                        "figma_file_key": "hTDboSi9SgURHs3KrewNNB",
+                        "figma_node_id": "1:850"
+                    },
+                    "WeatherDashboard": {
+                        "description": "Current weather and forecast",
+                        "best_for": ["weather", "forecast", "temperature"],
+                        "keywords": ["weather", "forecast", "temperature", "climate"],
+                        "figma_file_key": "hTDboSi9SgURHs3KrewNNB",
+                        "figma_node_id": "1:900"
                     }
                 }
             }

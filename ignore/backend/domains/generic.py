@@ -25,22 +25,42 @@ class GenericDomain(BaseDomain):
         return list(set(mcps))
 
     def select_ui_template(self, mcp_data: Dict[str, Any]) -> str:
-        if "location" in mcp_data and "weather" in mcp_data:
+        if "weather" in mcp_data and mcp_data["weather"]:
             return "WeatherDashboard"
-        return "GenericDashboard"
+        if "news" in mcp_data and mcp_data["news"].get("results"):
+            return "NewsDashboard"
+        if "search" in mcp_data and mcp_data["search"].get("results"):
+            return "LinkGrid"
+        return "SummaryView"
 
     def prepare_ui_props(self, mcp_data: Dict[str, Any], llm_response: str) -> Dict[str, Any]:
         props = {
             "response": llm_response,
             "timestamp": mcp_data.get("timestamp", ""),
-            "search_results": [],
+            "items": [],
             "context": {}
         }
-        
+
+        # News
+        if "news" in mcp_data and mcp_data["news"].get("results"):
+            for item in mcp_data["news"]["results"]:
+                props["items"].append({
+                    "title": item.get("title"),
+                    "description": item.get("snippet"),
+                    "url": item.get("url"),
+                    "source": item.get("source"),
+                })
+
         # Search Results
-        if "search" in mcp_data:
-            props["search_results"] = mcp_data["search"].get("results", [])
-            
+        if "search" in mcp_data and mcp_data["search"].get("results"):
+            for item in mcp_data["search"]["results"]:
+                props["items"].append({
+                    "title": item.get("title"),
+                    "description": item.get("snippet"),
+                    "url": item.get("link"),
+                    "source": item.get("source"),
+                })
+
         # Weather / Location
         if "weather" in mcp_data:
             props["weather"] = mcp_data["weather"]
@@ -48,15 +68,11 @@ class GenericDomain(BaseDomain):
             loc_results = mcp_data["location"].get("results", [])
             if loc_results:
                 props["location"] = loc_results[0]
-                
-        # News
-        if "news" in mcp_data:
-            props["news"] = mcp_data["news"].get("results", [])
 
         # Browser Data
         if "browser" in mcp_data:
             props["context"]["tabs"] = mcp_data["browser"].get("tabs", [])
-            
+
         return props
 
     def validate_data(self, mcp_data: Dict[str, Any]) -> bool:

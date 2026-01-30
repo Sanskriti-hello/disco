@@ -103,7 +103,8 @@ class GoogleWorkspaceMCP:
                 flow = InstalledAppFlow.from_client_secrets_file(
                     self.credentials_path, SCOPES
                 )
-                self.creds = flow.run_local_server(port=0)
+                # Let the library pick a random available port (Standard for Desktop apps)
+                self.creds = flow.run_local_server(port=8080)
             
             # Save credentials for next run
             with open(self.token_path, 'wb') as token:

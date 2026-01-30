@@ -4,6 +4,7 @@ from .base import BaseDomain
 class ShoppingDomain(BaseDomain):
     """
     Handles: product search, comparison, pricing, recommendation
+    FIXED: Properly transforms Amazon/Search MCP data into UI props
     """
 
     def get_required_mcps(self, user_prompt: str) -> List[str]:
@@ -17,16 +18,19 @@ class ShoppingDomain(BaseDomain):
         # Location for local stores
         if any(word in prompt for word in ["near", "nearby", "store", "offline", "local"]):
             mcps.append("location")
-            mcps.append("weather") # Might as well check weather for shopping trip
+            mcps.append("weather")
         
         return list(set(mcps))
 
     def select_ui_template(self, mcp_data: Dict[str, Any]) -> str:
-        if "amazon" in mcp_data and mcp_data["amazon"].get("results"):
-            return "ProductComparisonTable"
+        if "amazon" in mcp_data and mcp_data["amazon"].get("data", {}).get("products"):
+            return "ProductGrid"
         return "ShoppingDashboard"
 
     def prepare_ui_props(self, mcp_data: Dict[str, Any], llm_response: str) -> Dict[str, Any]:
+        """
+        FIXED: Actually extract Amazon product data properly
+        """
         props = {
             "response": llm_response,
             "timestamp": mcp_data.get("timestamp", ""),
@@ -34,42 +38,133 @@ class ShoppingDomain(BaseDomain):
             "context": {}
         }
         
-        # Amazon Data
+        # ============================================================
+        # FIX 1: Amazon Product Data - Extract real products
+        # ============================================================
         if "amazon" in mcp_data:
             amazon_data = mcp_data["amazon"]
-            props["products"].extend(amazon_data.get("results", []))
             
-        # Search Data (Web context)
+            # Handle Amazon API response structure
+            products_list = amazon_data.get("data", {}).get("products", [])
+            
+            for product in products_list[:12]:  # Top 12 products
+                props["products"].append({
+                    "title": product.get("product_title", "Product"),
+                    "name": product.get("product_title", "Product"),
+                    "price": product.get("product_price", "N/A"),
+                    "rating": product.get("product_star_rating", 0),
+                    "reviews": product.get("product_num_ratings", 0),
+                    "url": product.get("product_url", ""),
+                    "image": product.get("product_photo", ""),
+                    "asin": product.get("asin", ""),
+                    "availability": product.get("product_availability", ""),
+                    "prime": product.get("is_prime", False)
+                })
+        
+        # ============================================================
+        # FIX 2: Web Search - Add general shopping results
+        # ============================================================
         if "search" in mcp_data:
-            props["web_context"] = mcp_data["search"].get("results", [])
+            search_results = mcp_data["search"].get("results", [])
+            props["web_context"] = []
             
-        # Financial / Conversion
+            for result in search_results[:8]:
+                # Add as supplementary products if no Amazon data
+                if not props["products"]:
+                    props["products"].append({
+                        "title": result.get("title", "Item"),
+                        "name": result.get("title", "Item"),
+                        "price": "Check Store",
+                        "url": result.get("url", ""),
+                        "image": result.get("image", ""),
+                        "snippet": result.get("snippet", "")
+                    })
+                
+                props["web_context"].append({
+                    "title": result.get("title", ""),
+                    "url": result.get("url", ""),
+                    "snippet": result.get("snippet", "")
+                })
+        
+        # ============================================================
+        # FIX 3: Currency/Financial Info
+        # ============================================================
         if "financial" in mcp_data:
-            props["currency_info"] = mcp_data["financial"]
-            
-        # Location
+            financial = mcp_data["financial"]
+            props["currency_info"] = {
+                "conversion": financial.get("conversion", {}),
+                "rates": financial.get("rates", {})
+            }
+        
+        # ============================================================
+        # FIX 4: Location-based stores
+        # ============================================================
         if "location" in mcp_data:
             loc_results = mcp_data["location"].get("results", [])
             if loc_results:
-                props["nearby_stores"] = mcp_data["location"].get("amenities", {}).get("elements", [])
-                props["user_location"] = loc_results[0]
-
-        # Browser Tabs Summary
+                props["user_location"] = {
+                    "name": loc_results[0].get("name", ""),
+                    "coordinates": loc_results[0].get("location", {})
+                }
+                
+                # Nearby stores from amenities
+                props["nearby_stores"] = []
+                amenities = mcp_data["location"].get("amenities", {}).get("elements", [])
+                for store in amenities[:5]:
+                    props["nearby_stores"].append({
+                        "name": store.get("tags", {}).get("name", "Local Store"),
+                        "type": store.get("tags", {}).get("shop", "store"),
+                        "address": store.get("tags", {}).get("addr:street", "")
+                    })
+        
+        # ============================================================
+        # FIX 5: Browser Context
+        # ============================================================
         if "browser" in mcp_data:
             tabs = mcp_data["browser"].get("tabs", [])
             props["context"]["open_tabs_count"] = len(tabs)
-            props["context"]["active_products"] = [t.get("title") for t in tabs if "amazon" in t.get("url", "") or "ebay" in t.get("url", "")]
-
+            
+            # Extract product names from tabs
+            props["context"]["active_products"] = []
+            for tab in tabs:
+                title = tab.get("title", "")
+                if any(site in tab.get("url", "") for site in ["amazon", "ebay", "walmart", "target"]):
+                    props["context"]["active_products"].append(title)
+        
+        # ============================================================
+        # CRITICAL: If no products found, create contextual placeholder
+        # ============================================================
+        if not props["products"]:
+            # Try to infer what user was looking for
+            search_query = ""
+            if "browser" in mcp_data:
+                tabs = mcp_data["browser"].get("tabs", [])
+                if tabs:
+                    # Get first shopping-related tab
+                    for tab in tabs:
+                        if any(word in tab.get("title", "").lower() for word in ["buy", "shop", "product", "price"]):
+                            search_query = tab.get("title", "")
+                            break
+            
+            props["products"].append({
+                "title": "🛍️ Start Shopping",
+                "name": "No products found yet",
+                "price": "—",
+                "url": "https://amazon.com",
+                "snippet": f"Search for products to get started. {f'Based on: {search_query}' if search_query else ''}",
+                "image": "",
+                "source": "placeholder"
+            })
+        
         return props
 
     def validate_data(self, mcp_data: Dict[str, Any]) -> bool:
-        # Browser context is mandatory
-        if "browser" not in mcp_data:
-            return False
-        # Search or Amazon is needed
-        return "search" in mcp_data or "amazon" in mcp_data
+        """
+        FIXED: More lenient - can work with browser context alone
+        """
+        return "browser" in mcp_data
 
     def get_follow_up_question(self, mcp_data: Dict[str, Any]) -> Optional[str]:
-        if "browser" not in mcp_data:
-            return "I need to see your browser context to help find products."
-        return "What product or category are you looking for, and what's your budget?"
+        if "amazon" not in mcp_data and "search" not in mcp_data:
+            return "What product are you looking for, and what's your budget?"
+        return None
