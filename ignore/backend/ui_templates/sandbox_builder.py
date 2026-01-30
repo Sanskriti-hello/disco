@@ -40,62 +40,25 @@ class SandboxBuilder:
         
         files = {}
         
-        # 1. Load package.json with all dependencies
-        files["package.json"] = {
-            "content": self._load_package_json(template_path)
-        }
+        # 10. RECURSIVELY copy ALL files from template directory (overwriting above if needed)
+        # This ensures assets, images, styles, and extra components are all included
+        try:
+            files = self._add_all_template_files(files, template_path, template_id)
+        except Exception as e:
+            print(f"Error recursively adding files: {e}")
         
-        # 2. Load tailwind config
-        tailwind_path = template_path / "tailwind.config.js"
-        if tailwind_path.exists():
-            files["tailwind.config.js"] = {
-                "content": tailwind_path.read_text(encoding='utf-8')
+        # 10.5 If index.css was NOT in template, add the default one now
+        if "src/index.css" not in files:
+            files["src/index.css"] = {
+                "content": self._generate_tailwind_css()
             }
         
-        # 3. Load postcss config
-        postcss_path = template_path / "postcss.config.js"
-        if postcss_path.exists():
-            files["postcss.config.js"] = {
-                "content": postcss_path.read_text(encoding='utf-8')
-            }
-        
-        # 4. Load vite config
-        vite_config_path = template_path / "vite.config.js"
-        if vite_config_path.exists():
-            files["vite.config.js"] = {
-                "content": vite_config_path.read_text(encoding='utf-8')
-            }
-        
-        # 5. Create index.html
-        files["index.html"] = {
-            "content": self._generate_index_html(template_id)
-        }
-        
-        # 6. Add the main injected component
+        # 11. Ensure main component is injected with the processed code
+        # We re-add this LAST to ensure the injected version takes precedence over the file on disk
         component_name = self._get_component_name(template_id)
         files[f"src/{component_name}.jsx"] = {
             "content": injected_component
         }
-        
-        # 7. Create simplified App.jsx (no router, just render main component)
-        files["src/App.jsx"] = {
-            "content": self._generate_simple_app(component_name)
-        }
-        
-        # 8. Create index.jsx entry point
-        files["src/index.jsx"] = {
-            "content": self._generate_index_jsx()
-        }
-        
-        # 9. Add styles with Tailwind directives
-        files["src/index.css"] = {
-            "content": self._generate_tailwind_css()
-        }
-        
-        # 10. Copy any additional pages/components from template
-        src_path = template_path / "src" / "pages"
-        if src_path.exists():
-            files = self._add_additional_components(files, src_path, template_id)
         
         return files
     
@@ -156,6 +119,7 @@ class SandboxBuilder:
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="manifest" href="/manifest.json" />
     <title>Dashboard</title>
   </head>
   <body>
@@ -226,6 +190,58 @@ body {
             files[rel_path] = {
                 "content": component_file.read_text(encoding='utf-8')
             }
+        
+        return files
+
+
+    def _add_all_template_files(self, files: Dict, template_path: Path, template_id: str) -> Dict:
+        """Recursively add all files from template directory"""
+        
+        # Skip these directories/files
+        SKIP_DIRS = {'.git', 'node_modules', 'dist', '__pycache__'}
+        SKIP_EXTS = {'.py', '.pyc', '.DS_Store'}
+        
+        for root, dirs, filenames in os.walk(template_path):
+            # Modify dirs in-place to skip specific directories
+            dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+            
+            for filename in filenames:
+                file_path = Path(root) / filename
+                rel_path = file_path.relative_to(template_path)
+                str_path = str(rel_path).replace("\\", "/") # Normalize for web
+                
+                # MOVE ASSETS TO PUBLIC
+                # If the file is in 'assets/', move it to 'public/assets/'
+                if str_path.startswith("assets/"):
+                    str_path = "public/" + str_path
+                
+                if file_path.suffix in SKIP_EXTS:
+                    continue
+                
+                # Check for binary files
+                try:
+                    content = file_path.read_text(encoding='utf-8')
+                    if str_path not in files:
+                         files[str_path] = {"content": content}
+                         
+                except UnicodeDecodeError:
+                     # Binary file handling
+                     print(f"⚠️ Skipping binary file: {str_path} (CodeSandbox JSON API limitation)")
+                     pass
+        
+        # Add Manifest (CodeSandbox specific fix)
+        files["public/manifest.json"] = {
+            "content": json.dumps({
+                "name": "Disco Dashboard",
+                "short_name": "Disco",
+                "start_url": ".",
+                "scope": "/",
+                "display": "standalone",
+                "background_color": "#ffffff",
+                "theme_color": "#000000",
+                "icons": []
+            }, indent=2)
+        }
         
         return files
 

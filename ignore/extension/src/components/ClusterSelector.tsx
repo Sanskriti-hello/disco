@@ -460,10 +460,14 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
                             </div>
 
                             <button
-                                onClick={() => window.open(chrome.runtime.getURL('dashboard.html'), '_blank')}
+                                onClick={() => {
+                                    if (dashboardConfig.sandbox_embed_url) {
+                                        window.open(dashboardConfig.sandbox_embed_url, '_blank');
+                                    }
+                                }}
                                 className="w-full py-4 rounded-xl bg-gradient-to-r from-[#10B981] to-[#06B6D4] text-white font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2"
                             >
-                                🚀 Open Full Dashboard
+                                🚀 Open CodeSandbox
                             </button>
 
                             <button
