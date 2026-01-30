@@ -145,3 +145,27 @@ class BaseDomain:
     def get_follow_up_question(self, mcp_data: Dict[str, Any]) -> Optional[str]:
         """Question to ask if data is missing."""
         return "Can you provide more information or clarify your request?"
+    
+    def prepare_template_data(
+        self, 
+        template_id: str, 
+        mcp_data: Dict[str, Any], 
+        llm_response: str
+    ) -> Dict[str, Any]:
+        """
+        Transform MCP data to match specific template requirements.
+        This should be overridden by subclasses for template-specific formatting.
+        
+        Args:
+            template_id: ID of selected template (e.g., "code-1", "shopping-1")
+            mcp_data: Raw data from MCP tools
+            llm_response: Generated summary/response text
+        
+        Returns: Dictionary matching the template's data schema
+        """
+        # Default implementation - subclasses should override
+        return {
+            "title": llm_response,
+            "items": [],
+            "data": mcp_data
+        }

@@ -63,7 +63,7 @@ async def domain_logic_node(state: AgentState) -> AgentState:
             "tab_count": len(tabs)
         }
         
-        # Process through domain
+        # Process through domain (gets MCP data)
         domain_response = await domain.process(
             user_prompt=prompt,
             browser_data=browser_data,
@@ -80,24 +80,67 @@ async def domain_logic_node(state: AgentState) -> AgentState:
                 }
             }
         
+        # ✨ NEW: Select template early and transform data for it
+        from ui_templates.template_loader import TemplateLoader
+        loader = TemplateLoader()
+        
+        # Extract keywords for template selection
+        keywords = prompt.lower().split() + [tab.get("title", "").lower() for tab in tabs[:5]]
+        keywords = [k for k in keywords if len(k) > 3][:20]
+        
+        template_info = loader.select_template(
+            domain=domain_name,
+            keywords=keywords,
+            user_prompt=prompt,
+            tab_count=len(tabs),
+            tab_urls=[tab.get("url", "") for tab in tabs]
+        )
+        
+        # ✨ NEW: Use domain agent to prepare template-specific data
+        template_data = domain.prepare_template_data(
+            template_id=template_info["template_id"],
+            mcp_data=domain_response.mcp_results,
+            llm_response=domain_response.ui_props.get("response", "")
+        )
+        
+        print(f"📦 Prepared template data with keys: {list(template_data.keys())}")
+        
         return {
             **state,
-            "selected_template": domain_response.ui_template,
-            "template_data": domain_response.ui_props
+            "selected_template": template_info["template_id"],
+            "template_data": template_data
         }
         
     except Exception as e:
         print(f"Domain logic error: {e}")
+        import traceback
+        traceback.print_exc()
         return {
             **state,
             "error": f"Domain processing failed: {str(e)}"
         }
 
 
+
+# ============================================================================
+# DEPRECATED: Template selection now happens in domain_logic_node
+# ============================================================================
+
 async def select_template_node(state: AgentState) -> AgentState:
-    """Dynamic template selection using Registry"""
-    from ui_templates.registry import TemplateRegistryV2
+    """
+    ⚠️ DEPRECATED - Template selection is now integrated into domain_logic_node
+    This node is kept for backward compatibility but does nothing
+    """
+    print("⚠️ select_template_node is deprecated - template selection happens in domain_logic_node")
+    return state
+
+
+
+async def render_ui_node(state: AgentState) -> AgentState:
+    """Convert selected template and data to React code using local templates"""
+    from template_generator import generate_dashboard_from_template
     
+    # Extract keywords from user prompt and tabs for template selection
     keywords = []
     if state.get("user_prompt"):
         keywords.extend(state["user_prompt"].lower().split())
@@ -106,51 +149,47 @@ async def select_template_node(state: AgentState) -> AgentState:
         title = tab.get("title", "").lower()
         keywords.extend(title.split())
     
+    # Remove stop words and duplicates
     stop_words = {"the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "is", "are", "was", "were"}
     keywords = [k for k in keywords if k not in stop_words and len(k) > 3]
     keywords = list(set(keywords))[:20]
     
+    # Prepare context for template selection
+    user_context = {
+        "keywords": keywords,
+        "user_prompt": state.get("user_prompt", ""),
+        "tab_count": len(state.get("tabs", [])),
+        "tab_urls": [tab.get("url", "") for tab in state.get("tabs", [])]
+    }
+    
     try:
-        registry = TemplateRegistryV2()
-        template_match = registry.find_best_template(
-            domain=state["primary_domain"] or "generic",
-            keywords=keywords,
-            user_prompt=state.get("user_prompt", "")
+        react_code = generate_dashboard_from_template(
+            domain=state.get("primary_domain", "generic"),
+            template_data=state.get("template_data", {}),
+            user_context=user_context
         )
         
-        template_meta = registry.get_template_meta(state["primary_domain"] or "generic", template_match["template_name"])
-        
         return {
             **state,
-            "selected_template": template_match["template_name"],
-            "figma_node_id": template_meta.get("figma_node_id") if template_meta else "default",
-            "figma_preview_url": template_match["figma_url"]
+            "react_code": react_code
         }
-        
     except Exception as e:
+        print(f"❌ Template generation error: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # Fallback to simple component
+        from template_generator import generate_fallback_component
+        fallback_code = generate_fallback_component(
+            state.get("template_data", {}),
+            state.get("primary_domain", "generic")
+        )
+        
         return {
             **state,
-            "selected_template": "GenericDashboard",
-            "error": f"Registry fetch failed: {str(e)}"
+            "react_code": fallback_code,
+            "error": f"Template generation failed: {str(e)}"
         }
-
-
-async def render_ui_node(state: AgentState) -> AgentState:
-    """Convert selected template and data to React code"""
-    from figma import generate_dashboard_component
-    
-    react_code = generate_dashboard_component(
-        figma_node_id=state.get("figma_node_id", "unknown"),
-        figma_preview_url=state.get("figma_preview_url", ""),
-        template_name=state.get("selected_template", "Dashboard"),
-        template_data=state.get("template_data", {}),
-        domain=state.get("primary_domain", "generic")
-    )
-    
-    return {
-        **state,
-        "react_code": react_code
-    }
 
 
 async def codesandbox_check_node(state: AgentState) -> AgentState:
@@ -255,19 +294,18 @@ def should_continue(state: AgentState):
 
 
 def build_graph() -> StateGraph:
-    """Build LangGraph with Check-and-Loop logic"""
+    """Build LangGraph with Check-and-Loop logic (updated for local templates)"""
     workflow = StateGraph(AgentState)
     
     # Define Nodes
     workflow.add_node("domain_logic", domain_logic_node)
-    workflow.add_node("select_template", select_template_node)
+    # NOTE: select_template is deprecated - template selection happens in domain_logic_node
     workflow.add_node("render", render_ui_node)
     workflow.add_node("codesandbox_check", codesandbox_check_node)
     
-    # Define Edges
+    # Define Edges (simplified - no separate template selection)
     workflow.set_entry_point("domain_logic")
-    workflow.add_edge("domain_logic", "select_template")
-    workflow.add_edge("select_template", "render")
+    workflow.add_edge("domain_logic", "render")  # Direct to render (template already selected)
     workflow.add_edge("render", "codesandbox_check")
     
     # Conditional Loop (The Renderer Check)

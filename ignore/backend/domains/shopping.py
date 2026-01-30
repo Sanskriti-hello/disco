@@ -168,3 +168,86 @@ class ShoppingDomain(BaseDomain):
         if "amazon" not in mcp_data and "search" not in mcp_data:
             return "What product are you looking for, and what's your budget?"
         return None
+    
+    def prepare_template_data(
+        self, 
+        template_id: str, 
+        mcp_data: Dict[str, Any], 
+        llm_response: str
+    ) -> Dict[str, Any]:
+        """Transform MCP data for template-specific rendering"""
+        
+        if template_id == "shopping-1":
+            # E-commerce product grid template
+            products = []
+            
+            # Extract Amazon products
+            if "amazon" in mcp_data:
+                amazon_data = mcp_data["amazon"]
+                products_list = amazon_data.get("data", {}).get("products", [])
+                
+                for product in products_list[:12]:
+                    products.append({
+                        "title": product.get("product_title", "Product"),
+                        "price": product.get("product_price", "N/A"),
+                        "original_price": product.get("product_original_price"),
+                        "rating": float(product.get("product_star_rating", "0") or 0),
+                        "review_count": int(product.get("product_num_ratings", 0) or 0),
+                        "url": product.get("product_url", ""),
+                        "image_url": product.get("product_photo", ""),
+                        "availability": product.get("product_availability", ""),
+                        "features": product.get("product_details", [])[:3] if product.get("product_details") else []
+                    })
+            
+            # Fallback to search results
+            if not products and "search" in mcp_data:
+                for result in mcp_data["search"].get("results", [])[:8]:
+                    products.append({
+                        "title": result.get("title", "Product"),
+                        "price": "Check Store",
+                        "rating": 0,
+                        "review_count": 0,
+                        "url": result.get("url", ""),
+                        "image_url": "",
+                        "availability": "Available",
+                        "features": [result.get("snippet", "")[:100]]
+                    })
+            
+            # Calculate price range
+            price_range = None
+            prices = []
+            for p in products:
+                price_str = p.get("price", "")
+                # Try to extract numeric price
+                import re
+                price_match = re.search(r'[\d,]+\.?\d*', str(price_str))
+                if price_match:
+                    try:
+                        prices.append(float(price_match.group().replace(',', '')))
+                    except:
+                        pass
+            
+            if prices:
+                price_range = {"min": min(prices), "max": max(prices)}
+            
+            return {
+                "title": "Product Comparison",
+                "products": products,
+                "price_range": price_range,
+                "sort_by": "price",
+                "show_comparison": True
+            }
+        else:
+            # Fallback to generic template
+            return {
+                "title": "Shopping Dashboard",
+                "links": [
+                    {
+                        "title": p.get("name", p.get("title", "Product")),
+                        "url": p.get("url", ""),
+                        "summary": f"{p.get('price', 'N/A')} - {p.get('snippet', '')}",
+                        "domain": "shopping"
+                    }
+                    for p in self.prepare_ui_props(mcp_data, llm_response).get("products", [])
+                ]
+            }

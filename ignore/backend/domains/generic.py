@@ -80,3 +80,71 @@ class GenericDomain(BaseDomain):
 
     def get_follow_up_question(self, mcp_data: Dict[str, Any]) -> Optional[str]:
         return "How can I help you today?"
+    
+    def prepare_template_data(
+        self, 
+        template_id: str, 
+        mcp_data: Dict[str, Any], 
+        llm_response: str
+    ) -> Dict[str, Any]:
+        """Transform MCP data for template-specific rendering"""
+        
+        # Extract items from various sources
+        items = []
+        
+        # News items
+        if "news" in mcp_data and mcp_data["news"].get("results"):
+            for item in mcp_data["news"]["results"][:10]:
+                items.append({
+                    "title": item.get("title", "News"),
+                    "url": item.get("url", ""),
+                    "summary": item.get("snippet", ""),
+                    "tags": ["news"],
+                    "timestamp": item.get("published_at", "")
+                })
+        
+        # Search results
+        if "search" in mcp_data and mcp_data["search"].get("results"):
+            for item in mcp_data["search"]["results"][:10]:
+                items.append({
+                    "title": item.get("title", "Result"),
+                    "url": item.get("link", ""),
+                    "summary": item.get("snippet", ""),
+                    "tags": [],
+                    "timestamp": ""
+                })
+        
+        # Browser tabs
+        if "browser" in mcp_data:
+            for tab in mcp_data["browser"].get("tabs", [])[:10]:
+                items.append({
+                    "title": tab.get("title", "Tab"),
+                    "url": tab.get("url", ""),
+                    "summary": tab.get("content", "")[:200],
+                    "domain": tab.get("url", "").split("/")[2] if "/" in tab.get("url", "") else "",
+                    "tags": []
+                })
+        
+        if template_id == "generic-2":
+            # Yellow search dashboard
+            return {
+                "title": f"Dashboard ({len(items)} items)",
+                "items": items,
+                "search_enabled": True,
+                "categories": ["All", "News", "Search", "Tabs"],
+                "total_count": len(items)
+            }
+        elif template_id == "generic-1":
+            # Blue link collection
+            return {
+                "title": "Your Collection",
+                "links": items,
+                "category": "general",
+                "total_tabs": len(items)
+            }
+        else:
+            # Default fallback
+            return {
+                "title": llm_response[:50] if llm_response else "Dashboard",
+                "items": items
+            }

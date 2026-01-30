@@ -179,3 +179,95 @@ class StudyDomain(BaseDomain):
         if "arxiv" not in mcp_data and "search" not in mcp_data:
             return "What research topic or papers would you like to explore?"
         return None
+    
+    def prepare_template_data(
+        self, 
+        template_id: str, 
+        mcp_data: Dict[str, Any], 
+        llm_response: str
+    ) -> Dict[str, Any]:
+        """Transform MCP data for template-specific rendering"""
+        
+        if template_id == "code-1":
+            # Code template for study domain (when studying code/ML)
+            return {
+                "title": "Research Code",
+                "code_snippets": self._extract_code_from_papers(mcp_data),
+                "documentation": self._format_papers_as_docs(mcp_data),
+                "terminal_output": llm_response
+            }
+        elif template_id in ["generic-1", "generic-2"]:
+            # Generic templates for research papers
+            papers = self.prepare_ui_props(mcp_data, llm_response).get("papers", [])
+            
+            items = []
+            for paper in papers:
+                items.append({
+                    "title": paper.get("title", "Paper"),
+                    "url": paper.get("url", ""),
+                    "summary": paper.get("summary", ""),
+                    "tags": paper.get("categories", [])[:3],
+                    "timestamp": paper.get("published", ""),
+                    "favicon": "📄"
+                })
+            
+            if template_id == "generic-2":
+                # Search-enabled template
+                return {
+                    "title": f"Research Papers ({len(items)} found)",
+                    "items": items,
+                    "search_enabled": True,
+                    "categories": list(set([tag for item in items for tag in item.get("tags", [])])),
+                    "total_count": len(items)
+                }
+            else:
+                # Link collection template
+                return {
+                    "title": "Research Collection",
+                    "links": items,
+                    "category": "research",
+                    "total_tabs": len(items)
+                }
+        else:
+            # Default fallback
+            return self.prepare_ui_props(mcp_data, llm_response)
+    
+    def _extract_code_from_papers(self, mcp_data: Dict) -> List[Dict]:
+        """Extract code snippets from ArXiv papers or search results"""
+        snippets = []
+        
+        # ArXiv papers often have code sections
+        if "arxiv" in mcp_data:
+            for paper in mcp_data["arxiv"].get("results", [])[:3]:
+                abstract = paper.get("summary", "")
+                # Simple heuristic: look for algorithm/pseudocode indicators
+                if any(kw in abstract.lower() for kw in ["algorithm", "code", "implementation", "function"]):
+                    snippets.append({
+                        "language": "python",
+                        "code": f"# From: {paper.get('title', 'Paper')}\n# {abstract[:200]}...",
+                        "filename": f"{paper.get('arxiv_id', 'paper')}.py",
+                        "explanation": paper.get("title", "")
+                    })
+        
+        if not snippets:
+            snippets.append({
+                "language": "markdown",
+                "code": "# Research papers found\n# No code snippets available",
+                "filename": "notes.md"
+            })
+        
+        return snippets
+    
+    def _format_papers_as_docs(self, mcp_data: Dict) -> List[Dict]:
+        """Format ArXiv papers as documentation entries"""
+        docs = []
+        
+        if "arxiv" in mcp_data:
+            for paper in mcp_data["arxiv"].get("results", [])[:10]:
+                docs.append({
+                    "title": paper.get("title", "Paper"),
+                    "content": paper.get("summary", "")[:300],
+                    "url": paper.get("link", "")
+                })
+        
+        return docs
