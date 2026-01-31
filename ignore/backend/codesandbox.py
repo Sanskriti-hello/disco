@@ -1,157 +1,243 @@
 """
-CodeSandbox Integration Module (Async)
-=====================================
-Creates real CodeSandbox previews from generated React code using the verified Define API.
+CodeSandbox Builder – Plain React (No Vite)
+Browser-sandbox compatible
 """
 
 import os
 import json
-import httpx
+from pathlib import Path
 from typing import Dict, Any, Optional
-from datetime import datetime
-from dataclasses import dataclass
 
 
-@dataclass
-class SandboxResult:
-    """Result from CodeSandbox creation."""
-    success: bool
-    sandbox_id: Optional[str] = None
-    embed_url: Optional[str] = None
-    preview_url: Optional[str] = None
-    error: Optional[str] = None
+class SandboxBuilder:
+    """Builds plain React CodeSandbox projects (no Vite)"""
 
+    def __init__(self, templates_dir: Optional[Path] = None):
+        self.templates_dir = templates_dir or Path(__file__).parent
 
-class CodeSandboxClient:
-    """
-    Client for creating and managing CodeSandbox previews.
-    Uses the verified /api/v1/sandboxes/define endpoint.
-    """
-    
-    # Using the verified working endpoint
-    API_URL = "https://codesandbox.io/api/v1/sandboxes/define?json=1"
-    
-    def __init__(self, api_token: Optional[str] = None):
-        self.api_token = api_token or os.getenv("CODESANDBOX_API_TOKEN") or os.getenv("SANDBOX_API")
-        # Note: Define API often works without token for public sandboxes, 
-        # but we'll include it if present.
-    
-    async def create_sandbox(
+    # =========================================================================
+    # PUBLIC API
+    # =========================================================================
+
+    def build_complete_sandbox(
         self,
-        jsx_code: Optional[str] = None,
-        title: Optional[str] = None,
-        additional_files: Optional[Dict[str, str]] = None,
-        complete_files: Optional[Dict[str, Dict[str, str]]] = None
-    ) -> SandboxResult:
-        """
-        Create a new CodeSandbox from React JSX code asynchronously.
-        
-        Args:
-            jsx_code: Single JSX component (legacy mode)
-            title: Sandbox title
-            additional_files: Additional files to include (legacy mode)
-            complete_files: Complete file structure from SandboxBuilder (NEW)
-        
-        Returns: SandboxResult with sandbox URLs
-        """
-        title = title or f"GenTab Dashboard - {datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        
-        # NEW: Use complete_files if provided (full template structure)
-        if complete_files:
-            print("📦 Using complete template file structure")
-            files = complete_files
-        else:
-            # LEGACY: Build basic structure from single JSX file
-            print("⚠️ Using legacy single-file mode")
-            files = {
-                "App.jsx": {
-                    "content": jsx_code
-                },
-                "index.js": {
-                    "content": """import React from 'react';
+        template_id: str,
+        injected_component: str,
+        data: Dict[str, Any]
+    ) -> Dict[str, Dict[str, str]]:
+
+        template_path = self.templates_dir / template_id
+        if not template_path.exists():
+            raise FileNotFoundError(f"Template directory not found: {template_path}")
+
+        files: Dict[str, Dict[str, str]] = {}
+
+        # Copy all template files (assets, styles, etc.)
+        files = self._add_all_template_files(files, template_path)
+
+        component_name = self._get_component_name(template_id)
+
+        # Inject main component LAST
+        files[f"src/{component_name}.jsx"] = {
+            "content": injected_component
+        }
+
+        # Core React files
+        files["public/index.html"] = {
+            "content": self._generate_index_html()
+        }
+
+        files["src/index.js"] = {
+            "content": self._generate_index_js()
+        }
+
+        files["src/App.js"] = {
+            "content": self._generate_app_js(component_name)
+        }
+
+        # CSS
+        if "src/index.css" not in files:
+            files["src/index.css"] = {
+                "content": self._generate_tailwind_css()
+            }
+
+        # package.json
+        files["package.json"] = {
+            "content": self._generate_package_json()
+        }
+
+        return files
+
+    # =========================================================================
+    # FILE GENERATORS
+    # =========================================================================
+
+    def _generate_package_json(self) -> str:
+        package = {
+            "name": "codesandbox-react-app",
+            "version": "1.0.0",
+            "private": True,
+            "dependencies": {
+                "react": "^18.2.0",
+                "react-dom": "^18.2.0",
+                "lucide-react": "latest",
+                "clsx": "latest",
+                "tailwind-merge": "latest",
+                "react-scripts": "5.0.1"
+            },
+            "scripts": {
+                "start": "react-scripts start",
+                "build": "react-scripts build"
+            }
+        }
+        return json.dumps(package, indent=2)
+
+    def _generate_index_html(self) -> str:
+        return """<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard</title>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>
+"""
+
+    def _generate_index_js(self) -> str:
+        return """import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import './styles.css';
+import './index.css';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
     <App />
   </React.StrictMode>
-);"""
-                },
-                "styles.css": {
-                    "content": """/* Base styles for GenTab Dashboard */
-* { margin: 0; padding: 0; box-sizing: border-box; }
+);
+"""
+
+    def _generate_app_js(self, component_name: str) -> str:
+        return f"""import React from 'react';
+import {component_name} from './{component_name}';
+
+function App() {{
+  return <{component_name} />;
+}}
+
+export default App;
+"""
+
+    def _generate_tailwind_css(self) -> str:
+        return """@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #0a0a1a;
-  color: white;
-  min-height: 100vh;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 """
-                },
-                "package.json": {
-                    "content": json.dumps({
-                        "name": "gentab-dashboard",
-                        "version": "1.0.0",
-                        "main": "index.js",
-                        "dependencies": {
-                            "react": "^18.2.0",
-                            "react-dom": "^18.2.0",
-                            "lucide-react": "latest",
-                            "clsx": "latest",
-                            "tailwind-merge": "latest"
-                        }
-                    }, indent=2)
-                }
-            }
-            
-            if additional_files:
-                for filename, code in additional_files.items():
-                    files[filename] = {"content": code}
-        
-        payload = {
-            "files": files
+
+    # =========================================================================
+    # TEMPLATE HELPERS
+    # =========================================================================
+
+    def _get_component_name(self, template_id: str) -> str:
+        component_map = {
+            "code-1": "Frame22",
+            "generic-1": "Frame15",
+            "generic-2": "Frame15",
+            "shopping-1": "Frame1"
         }
-        
-        headers = {}
-        if self.api_token:
-            headers["Authorization"] = f"Bearer {self.api_token}"
-        
-        async with httpx.AsyncClient() as client:
-            try:
-                resp = await client.post(
-                    self.API_URL,
-                    headers=headers,
-                    json=payload,
-                    timeout=30.0
-                )
-                
-                if resp.status_code == 200:
-                    data = resp.json()
-                    sandbox_id = data.get("sandbox_id")
-                    if sandbox_id:
-                        # Use preview-only embed to avoid SSE deprecation issues
-                        # &view=preview shows only the preview pane (no editor)
-                        # &module= can be omitted to skip editor entirely
-                        return SandboxResult(
-                            success=True,
-                            sandbox_id=sandbox_id,
-                            embed_url=f"https://codesandbox.io/embed/{sandbox_id}?fontsize=14&hidenavigation=1&theme=dark&view=preview&codemirror=1",
-                            preview_url=f"https://codesandbox.io/s/{sandbox_id}"
-                        )
-                    else:
-                        return SandboxResult(success=False, error="No sandbox_id in response")
-                else:
-                    return SandboxResult(success=False, error=f"API Error {resp.status_code}: {resp.text[:200]}")
-            except Exception as e:
-                return SandboxResult(success=False, error=str(e))
+        return component_map.get(template_id, "Frame15")
+
+    def _add_all_template_files(
+        self,
+        files: Dict[str, Dict[str, str]],
+        template_path: Path
+    ) -> Dict[str, Dict[str, str]]:
+
+        SKIP_DIRS = {".git", "node_modules", "dist", "__pycache__"}
+        SKIP_EXTS = {".py", ".pyc", ".DS_Store"}
+
+        for root, dirs, filenames in os.walk(template_path):
+            dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+
+            for filename in filenames:
+                file_path = Path(root) / filename
+                if file_path.suffix in SKIP_EXTS:
+                    continue
+
+                rel_path = file_path.relative_to(template_path)
+                str_path = str(rel_path).replace("\\", "/")
+
+                # Move assets → public
+                if str_path.startswith("assets/"):
+                    str_path = "public/" + str_path
+
+                try:
+                    content = file_path.read_text(encoding="utf-8")
+                    if str_path not in files:
+                        files[str_path] = {"content": content}
+                except UnicodeDecodeError:
+                    # Binary files skipped (CodeSandbox limitation)
+                    pass
+
+        # Manifest (harmless for browser sandbox)
+        files["public/manifest.json"] = {
+            "content": json.dumps(
+                {
+                    "name": "Disco Dashboard",
+                    "short_name": "Disco",
+                    "start_url": ".",
+                    "display": "standalone",
+                    "background_color": "#ffffff",
+                    "theme_color": "#000000"
+                },
+                indent=2
+            )
+        }
+
+        return files
 
 
-async def create_react_sandbox(jsx_code: str, title: Optional[str] = None) -> SandboxResult:
-    try:
-        client = CodeSandboxClient()
-        return await client.create_sandbox(jsx_code, title)
-    except Exception as e:
-        return SandboxResult(success=False, error=str(e))
+# ============================================================================
+# TEST
+# ============================================================================
+
+if __name__ == "__main__":
+    builder = SandboxBuilder()
+
+    test_component = """import React from 'react';
+
+export default function Frame22() {
+  return (
+    <div style={{ background: '#111', color: '#fff', padding: 32 }}>
+      Plain React Sandbox Working ✅
+    </div>
+  );
+}
+"""
+
+    files = builder.build_complete_sandbox(
+        template_id="code-1",
+        injected_component=test_component,
+        data={}
+    )
+
+    print(f"Built sandbox with {len(files)} files:")
+    for path in sorted(files):
+        print(" -", path)
