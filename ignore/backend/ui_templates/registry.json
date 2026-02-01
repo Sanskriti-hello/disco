@@ -1,0 +1,271 @@
+{
+    "templates": {
+        "code-1": {
+            "id": "code-1",
+            "name": "Terminal Code View",
+            "component_path": "code-1/src/pages/Frame22.jsx",
+            "app_path": "code-1/src/App.jsx",
+            "config_path": "code-1/tailwind.config.js",
+            "assets_path": "code-1/assets/",
+            "theme": {
+                "primary_color": "#00FF41",
+                "secondary_color": "#003B00",
+                "background_color": "#0D1117",
+                "accent_color": "#39FF14",
+                "style": "pixelated_terminal",
+                "fonts": [
+                    "JetBrains Mono",
+                    "Fira Code",
+                    "monospace"
+                ]
+            },
+            "features": [
+                "large_code_area",
+                "syntax_highlighting",
+                "terminal_output",
+                "explanation_panel",
+                "line_numbers",
+                "file_tree"
+            ],
+            "data_schema": "CodeTemplateData",
+            "required_fields": [
+                "code_snippets"
+            ],
+            "optional_fields": [
+                "documentation",
+                "terminal_output",
+                "related_repos"
+            ],
+            "matching": {
+                "keywords": [
+                    "code",
+                    "programming",
+                    "debug",
+                    "error",
+                    "function",
+                    "api",
+                    "github",
+                    "stackoverflow",
+                    "syntax",
+                    "terminal",
+                    "developer",
+                    "coding",
+                    "software",
+                    "script",
+                    "repository"
+                ],
+                "domains": [
+                    "code"
+                ],
+                "fallback_domains": [
+                    "study"
+                ],
+                "url_patterns": [
+                    "*github.com*",
+                    "*stackoverflow.com*",
+                    "*developer.mozilla.org*",
+                    "*docs.python.org*",
+                    "*dev.to*"
+                ],
+                "priority": 10
+            }
+        },
+        "generic-1": {
+            "id": "generic-1",
+            "name": "Blue Link Collection",
+            "component_path": "generic-1/src/pages/Frame15.jsx",
+            "app_path": "generic-1/src/App.jsx",
+            "config_path": "generic-1/tailwind.config.js",
+            "assets_path": "generic-1/assets/",
+            "theme": {
+                "primary_color": "#3B82F6",
+                "secondary_color": "#1E40AF",
+                "background_color": "#0F172A",
+                "accent_color": "#60A5FA",
+                "style": "clean_cards",
+                "fonts": [
+                    "Inter",
+                    "system-ui",
+                    "sans-serif"
+                ]
+            },
+            "features": [
+                "link_previews",
+                "rich_summaries",
+                "favicon_display",
+                "card_grid_layout",
+                "hover_effects"
+            ],
+            "data_schema": "GenericBlueData",
+            "required_fields": [
+                "links"
+            ],
+            "optional_fields": [
+                "category",
+                "total_tabs"
+            ],
+            "matching": {
+                "keywords": [
+                    "links",
+                    "bookmarks",
+                    "organize",
+                    "save",
+                    "collection",
+                    "reading",
+                    "later",
+                    "tabs",
+                    "websites",
+                    "browse",
+                    "articles",
+                    "resources"
+                ],
+                "domains": [
+                    "generic"
+                ],
+                "fallback_domains": [
+                    "study",
+                    "entertainment"
+                ],
+                "priority": 5
+            }
+        },
+        "generic-2": {
+            "id": "generic-2",
+            "name": "Yellow Search Dashboard",
+            "component_path": "generic-2/src/pages/Frame15.jsx",
+            "app_path": "generic-2/src/App.jsx",
+            "config_path": "generic-2/tailwind.config.js",
+            "assets_path": "generic-2/assets/",
+            "theme": {
+                "primary_color": "#FBBF24",
+                "secondary_color": "#D97706",
+                "background_color": "#1F2937",
+                "accent_color": "#FDE68A",
+                "style": "interactive_search",
+                "fonts": [
+                    "Inter",
+                    "system-ui",
+                    "sans-serif"
+                ]
+            },
+            "features": [
+                "search_bar",
+                "filter_sort",
+                "tag_system",
+                "masonry_grid",
+                "quick_actions"
+            ],
+            "data_schema": "GenericYellowData",
+            "required_fields": [
+                "items"
+            ],
+            "optional_fields": [
+                "search_enabled",
+                "categories",
+                "total_count"
+            ],
+            "matching": {
+                "keywords": [
+                    "search",
+                    "filter",
+                    "find",
+                    "explore",
+                    "discover",
+                    "research",
+                    "many",
+                    "organize",
+                    "sort",
+                    "query",
+                    "lookup",
+                    "browse"
+                ],
+                "domains": [
+                    "generic",
+                    "study"
+                ],
+                "min_tab_count": 10,
+                "priority": 6
+            }
+        },
+        "shopping-1": {
+            "id": "shopping-1",
+            "name": "Product Comparison Grid",
+            "component_path": "shopping-1/src/pages/Frame1.jsx",
+            "app_path": "shopping-1/src/App.jsx",
+            "config_path": "shopping-1/tailwind.config.js",
+            "assets_path": "shopping-1/assets/",
+            "theme": {
+                "primary_color": "#A855F7",
+                "secondary_color": "#EC4899",
+                "background_color": "#18181B",
+                "accent_color": "#F0ABFC",
+                "style": "ecommerce",
+                "fonts": [
+                    "Inter",
+                    "system-ui",
+                    "sans-serif"
+                ]
+            },
+            "features": [
+                "product_grid",
+                "price_comparison",
+                "star_ratings",
+                "review_display",
+                "deal_highlighting",
+                "image_gallery"
+            ],
+            "data_schema": "ShoppingTemplateData",
+            "required_fields": [
+                "products"
+            ],
+            "optional_fields": [
+                "price_range",
+                "sort_by",
+                "show_comparison"
+            ],
+            "matching": {
+                "keywords": [
+                    "buy",
+                    "shop",
+                    "price",
+                    "product",
+                    "deal",
+                    "cheap",
+                    "store",
+                    "purchase",
+                    "cart",
+                    "order",
+                    "review",
+                    "shopping",
+                    "discount",
+                    "sale",
+                    "compare"
+                ],
+                "domains": [
+                    "shopping"
+                ],
+                "url_patterns": [
+                    "*amazon.*",
+                    "*ebay.*",
+                    "*walmart.*",
+                    "*target.*",
+                    "*shopping*",
+                    "*aliexpress.*",
+                    "*etsy.*"
+                ],
+                "priority": 10
+            }
+        }
+    },
+    "selection_algorithm": {
+        "method": "weighted_scoring",
+        "weights": {
+            "keyword_match": 0.4,
+            "domain_match": 0.3,
+            "url_pattern_match": 0.2,
+            "tab_count_match": 0.1
+        },
+        "min_score_threshold": 0.3,
+        "default_template": "generic-1"
+    }
+}

@@ -1,0 +1,48 @@
+{
+  "manifest_version": 3,
+  "name": "Browser Dashboard",
+  "version": "1.0.0",
+  "description": "AI powered browser dashboard with tab clustering",
+  
+  "key": "MD8BIjANCgYJKj9IPz8NCgEBAQUAAz8BDwAwPwENCgI/AQEAP1k/Tz8RbhkhP1M/Pz9HPz8nPy94Jj8/aWY/VgYRbT8/Pz9ePz8/PzU/Pz86Pws/Pz9bPz9LD1o/dT8/Pz8jUXoCfD8SeT8/Az8/PzA/PwJePz8jKD8/Sz8/Fj8/Pz8/A3M/Ay8/BCE/fnA/P0AhPz8fPz8BPz9QPy8/Pz8/P34NCj9mZT9KclMTPwQ/Dj8/bnMXPz86P0w/Pyk/PyY/Pz8/MUM9Pz8/P3c/Pz9RWks/Pz8/P00tPz9qPz8/Pz8/P2sOXT8/PXA/Pz8/SmQ/GDU/P0Q/Sz87UD9hPz8ZIz9VPz8mCD9MNHo/dgs3Pz8/ID8/PysWPz8/Pz8/Pz8/dXECAwEAAQ0K",
+  
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  },
+  
+  "permissions": [
+    "tabs",
+    "scripting",
+    "activeTab",
+    "history",
+    "storage",
+    "identity"
+  ],
+  
+  "oauth2": {
+    "client_id": "276787019429-k78ckehgoe5k2egu38fdns4np39vsstf.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/calendar.readonly",
+      "https://www.googleapis.com/auth/calendar.events",
+      "https://www.googleapis.com/auth/drive.readonly",
+      "https://www.googleapis.com/auth/gmail.readonly",
+      "https://www.googleapis.com/auth/youtube.readonly",
+      "https://www.googleapis.com/auth/documents.readonly"
+    ]
+  },
+  
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  
+  "background": {
+    "service_worker": "background.js"
+  },
+  
+  "web_accessible_resources": [
+    {
+      "resources": ["content_extractor.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
