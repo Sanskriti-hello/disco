@@ -1,0 +1,200 @@
+/* Custom CSS for travel-2 Template - Legacy Sandbox Compatible */
+
+body {
+    background-color: #FFFFFF;
+    /* White BG */
+    color: #1f2937;
+    /* Dark Text */
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+.header {
+    position: relative;
+    width: 100%;
+    height: 180px;
+}
+
+.header-bg {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.header-title {
+    position: absolute;
+    top: 55px;
+    left: 168px;
+    font-size: 64px;
+    font-weight: bold;
+    color: black;
+}
+
+.nav-icons {
+    position: absolute;
+    top: 126px;
+    right: 140px;
+    display: flex;
+    gap: 92px;
+}
+
+.nav-icon {
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    background: none;
+    border: none;
+}
+
+.main-container {
+    position: relative;
+    padding: 2rem;
+}
+
+/* Date Picker Section */
+.date-picker-section {
+    background-color: #3BA9F8;
+    /* Blue Primary */
+    border-radius: 20px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.date-picker-title {
+    color: white;
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.date-inputs {
+    display: flex;
+    gap: 1rem;
+}
+
+.date-input {
+    flex: 1;
+    padding: 0.75rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+}
+
+/* Menu List Section */
+.menu-list-section {
+    background-color: #3BA9F8;
+    border-radius: 20px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.menu-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.menu-item {
+    background-color: white;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.menu-item:hover {
+    transform: translateX(4px);
+}
+
+.menu-item-title {
+    font-weight: 500;
+    color: #1f2937;
+}
+
+.menu-item-arrow {
+    color: #3BA9F8;
+}
+
+/* Photo Gallery Section */
+.photo-gallery-section {
+    background-color: #3BA9F8;
+    border-radius: 20px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.gallery-title {
+    color: white;
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+}
+
+.gallery-item {
+    background-color: white;
+    border-radius: 8px;
+    height: 120px;
+    overflow: hidden;
+}
+
+.gallery-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* FAQ Accordion Section */
+.faq-section {
+    background-color: #3BA9F8;
+    border-radius: 20px;
+    padding: 1.5rem;
+}
+
+.faq-title {
+    color: white;
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.faq-item {
+    background-color: white;
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+}
+
+.faq-question {
+    padding: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.faq-question:hover {
+    background-color: #f3f4f6;
+}
+
+.faq-answer {
+    padding: 0 1rem 1rem;
+    color: #4b5563;
+    line-height: 1.6;
+}
+
+.faq-toggle {
+    color: #3BA9F8;
+    font-size: 1.25rem;
+}

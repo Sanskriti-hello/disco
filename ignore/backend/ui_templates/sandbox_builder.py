@@ -111,10 +111,21 @@ class SandboxBuilder:
     def _get_component_name(self, template_id: str) -> str:
         """Get main component filename for template"""
         component_map = {
+            # Code Templates
             "code-1": "Frame22",
+            # Generic Templates
             "generic-1": "Frame15",
             "generic-2": "Frame15",
-            "shopping-1": "Frame1"
+            # Shopping Templates
+            "shopping-1": "Frame1",
+            # Entertainment Templates
+            "entertainment-1": "Frame26",
+            "entertainment-2": "Frame27",
+            # Study Templates
+            "study-1": "Frame",  # Uses index.tsx export
+            # Travel Templates
+            "travel-1": "Frame",  # Uses index.tsx export
+            "travel-2": "index"   # Uses index.tsx export
         }
         return component_map.get(template_id, "Frame15")
     

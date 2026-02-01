@@ -7,6 +7,7 @@
             "app_path": "code-1/src/App.jsx",
             "config_path": "code-1/tailwind.config.js",
             "assets_path": "code-1/assets/",
+            "legacy_css_path": "code-1-legacy.css",
             "theme": {
                 "primary_color": "#00FF41",
                 "secondary_color": "#003B00",
@@ -77,6 +78,7 @@
             "app_path": "generic-1/src/App.jsx",
             "config_path": "generic-1/tailwind.config.js",
             "assets_path": "generic-1/assets/",
+            "legacy_css_path": "generic-1-legacy.css",
             "theme": {
                 "primary_color": "#3B82F6",
                 "secondary_color": "#1E40AF",
@@ -136,6 +138,7 @@
             "app_path": "generic-2/src/App.jsx",
             "config_path": "generic-2/tailwind.config.js",
             "assets_path": "generic-2/assets/",
+            "legacy_css_path": "generic-2-legacy.css",
             "theme": {
                 "primary_color": "#FBBF24",
                 "secondary_color": "#D97706",
@@ -194,6 +197,7 @@
             "app_path": "shopping-1/src/App.jsx",
             "config_path": "shopping-1/tailwind.config.js",
             "assets_path": "shopping-1/assets/",
+            "legacy_css_path": "shopping-1-legacy.css",
             "theme": {
                 "primary_color": "#A855F7",
                 "secondary_color": "#EC4899",
@@ -254,6 +258,277 @@
                     "*etsy.*"
                 ],
                 "priority": 10
+            }
+        },
+        "entertainment-1": {
+            "id": "entertainment-1",
+            "name": "Media Card Gallery",
+            "component_path": "entertainment-1/src/pages/Frame26.jsx",
+            "app_path": "entertainment-1/src/App.jsx",
+            "config_path": "entertainment-1/tailwind.config.js",
+            "assets_path": "entertainment-1/assets/",
+            "legacy_css_path": "entertainment-1-legacy.css",
+            "theme": {
+                "primary_color": "#FF6B6B",
+                "secondary_color": "#4ECDC4",
+                "background_color": "#171717",
+                "accent_color": "#FF8E8E",
+                "style": "media_cards",
+                "fonts": [
+                    "Inter",
+                    "system-ui",
+                    "sans-serif"
+                ]
+            },
+            "features": [
+                "media_cards",
+                "bookmarks",
+                "favorites",
+                "grid_layout"
+            ],
+            "data_schema": "EntertainmentTemplateData",
+            "required_fields": [
+                "media_items"
+            ],
+            "optional_fields": [
+                "categories",
+                "favorites"
+            ],
+            "matching": {
+                "keywords": [
+                    "watch",
+                    "video",
+                    "movie",
+                    "show",
+                    "stream",
+                    "entertainment",
+                    "media",
+                    "youtube",
+                    "netflix"
+                ],
+                "domains": [
+                    "entertainment"
+                ],
+                "url_patterns": [
+                    "*youtube.com*",
+                    "*netflix.com*",
+                    "*twitch.tv*",
+                    "*spotify.com*"
+                ],
+                "priority": 8
+            }
+        },
+        "entertainment-2": {
+            "id": "entertainment-2",
+            "name": "Media Explorer Dashboard",
+            "component_path": "entertainment-2/src/pages/Frame27.jsx",
+            "app_path": "entertainment-2/src/App.jsx",
+            "config_path": "entertainment-2/tailwind.config.js",
+            "assets_path": "entertainment-2/assets/",
+            "legacy_css_path": "entertainment-2-legacy.css",
+            "theme": {
+                "primary_color": "#8B5CF6",
+                "secondary_color": "#EC4899",
+                "background_color": "#0F0F23",
+                "accent_color": "#A78BFA",
+                "style": "explorer_dashboard",
+                "fonts": [
+                    "Inter",
+                    "system-ui",
+                    "sans-serif"
+                ]
+            },
+            "features": [
+                "search_bar",
+                "avatars",
+                "tooltips",
+                "grid_layout"
+            ],
+            "data_schema": "EntertainmentTemplateData",
+            "required_fields": [
+                "media_items"
+            ],
+            "optional_fields": [
+                "search_enabled",
+                "user_avatars"
+            ],
+            "matching": {
+                "keywords": [
+                    "explore",
+                    "discover",
+                    "playlist",
+                    "music",
+                    "podcast",
+                    "audio"
+                ],
+                "domains": [
+                    "entertainment"
+                ],
+                "priority": 7
+            }
+        },
+        "study-1": {
+            "id": "study-1",
+            "name": "Study Summary Dashboard",
+            "component_path": "study-1/index.tsx",
+            "app_path": "study-1/index.tsx",
+            "config_path": "study-1/tailwind.config.js",
+            "assets_path": "study-1/",
+            "legacy_css_path": "study-1-legacy.css",
+            "theme": {
+                "primary_color": "#2EAFAB",
+                "secondary_color": "#1A7A77",
+                "background_color": "#FFFFFF",
+                "accent_color": "#4FD1CD",
+                "style": "academic",
+                "fonts": [
+                    "Roboto",
+                    "Inter",
+                    "sans-serif"
+                ]
+            },
+            "features": [
+                "summary_display",
+                "header_banner",
+                "navigation_icons"
+            ],
+            "data_schema": "StudyTemplateData",
+            "required_fields": [
+                "summary"
+            ],
+            "optional_fields": [
+                "title",
+                "sections"
+            ],
+            "matching": {
+                "keywords": [
+                    "study",
+                    "learn",
+                    "education",
+                    "course",
+                    "tutorial",
+                    "notes",
+                    "summary",
+                    "academic"
+                ],
+                "domains": [
+                    "study"
+                ],
+                "url_patterns": [
+                    "*coursera.org*",
+                    "*udemy.com*",
+                    "*khanacademy.org*",
+                    "*edx.org*"
+                ],
+                "priority": 8
+            }
+        },
+        "travel-1": {
+            "id": "travel-1",
+            "name": "Travel Planner Calendar",
+            "component_path": "travel-1/index.tsx",
+            "app_path": "travel-1/index.tsx",
+            "config_path": "travel-1/tailwind.config.js",
+            "assets_path": "travel-1/",
+            "legacy_css_path": "travel-1-legacy.css",
+            "theme": {
+                "primary_color": "#3BA9F8",
+                "secondary_color": "#2563EB",
+                "background_color": "#FFFFFF",
+                "accent_color": "#60A5FA",
+                "style": "travel_planner",
+                "fonts": [
+                    "Inter",
+                    "system-ui",
+                    "sans-serif"
+                ]
+            },
+            "features": [
+                "calendar",
+                "photo_gallery",
+                "date_picker",
+                "info_sidebar"
+            ],
+            "data_schema": "TravelTemplateData",
+            "required_fields": [
+                "destination"
+            ],
+            "optional_fields": [
+                "dates",
+                "photos",
+                "itinerary"
+            ],
+            "matching": {
+                "keywords": [
+                    "travel",
+                    "trip",
+                    "vacation",
+                    "flight",
+                    "hotel",
+                    "booking",
+                    "destination"
+                ],
+                "domains": [
+                    "travel"
+                ],
+                "url_patterns": [
+                    "*booking.com*",
+                    "*airbnb.com*",
+                    "*expedia.com*",
+                    "*tripadvisor.com*"
+                ],
+                "priority": 9
+            }
+        },
+        "travel-2": {
+            "id": "travel-2",
+            "name": "Travel Guide Dashboard",
+            "component_path": "travel-2/index.tsx",
+            "app_path": "travel-2/index.tsx",
+            "config_path": "travel-2/tailwind.config.js",
+            "assets_path": "travel-2/",
+            "legacy_css_path": "travel-2-legacy.css",
+            "theme": {
+                "primary_color": "#3BA9F8",
+                "secondary_color": "#2563EB",
+                "background_color": "#FFFFFF",
+                "accent_color": "#60A5FA",
+                "style": "travel_guide",
+                "fonts": [
+                    "Inter",
+                    "system-ui",
+                    "sans-serif"
+                ]
+            },
+            "features": [
+                "date_picker",
+                "menu_list",
+                "photo_gallery",
+                "faq_accordion"
+            ],
+            "data_schema": "TravelTemplateData",
+            "required_fields": [
+                "destination"
+            ],
+            "optional_fields": [
+                "dates",
+                "photos",
+                "faq",
+                "menu_items"
+            ],
+            "matching": {
+                "keywords": [
+                    "guide",
+                    "tour",
+                    "explore",
+                    "itinerary",
+                    "places",
+                    "attractions"
+                ],
+                "domains": [
+                    "travel"
+                ],
+                "priority": 8
             }
         }
     },
