@@ -1,5 +1,9 @@
 from typing import Dict, List, Any, Optional
 from .base import BaseDomain
+from backend.mcp_tools.flashcard import generate_flashcards
+from backend.mcp_tools.quiz import generate_quiz
+from backend.mcp_tools.summarize import summarize_text
+
 
 class StudyDomain(BaseDomain):
     """
@@ -22,6 +26,10 @@ class StudyDomain(BaseDomain):
         # News for current events in research
         if any(word in prompt for word in ["news", "latest", "update", "current"]):
             mcps.append("news")
+
+        # Study tools (flashcards / quiz / summary)
+        if any(word in prompt for word in ["flashcard", "quiz", "mcq", "test", "revise", "summary", "summarize"]):
+            mcps.append("study_tools")
 
         return list(set(mcps))
 
@@ -142,6 +150,35 @@ class StudyDomain(BaseDomain):
                 })
         
         # ============================================================
+        # FIX 6: Study Tools (Flashcards / Quiz / Summary)
+        # ============================================================
+        if "study_tools" in mcp_data:
+            study = mcp_data["study_tools"]
+
+            # Flashcards
+            if "flashcards" in study:
+                props["flashcards"] = []
+                for card in study.get("flashcards", []):
+                    props["flashcards"].append({
+                        "question": card.get("question", ""),
+                        "answer": card.get("answer", "")
+                    })
+
+            # Quiz
+            if "quiz" in study:
+                props["quiz"] = []
+                for q in study.get("quiz", []):
+                    props["quiz"].append({
+                        "question": q.get("question", ""),
+                        "options": q.get("options", {}),
+                        "answer": q.get("answer", "")
+                    })
+
+            # Summary
+            if "summary" in study:
+                props["summary"] = study.get("summary", "")
+
+        # ============================================================
         # CRITICAL: If no papers found, create placeholder with context
         # ============================================================
         if not props["papers"]:
@@ -167,6 +204,7 @@ class StudyDomain(BaseDomain):
             })
             
         return props
+
 
     def validate_data(self, mcp_data: Dict[str, Any]) -> bool:
         """
@@ -271,3 +309,25 @@ class StudyDomain(BaseDomain):
                 })
         
         return docs
+    
+    def run_study_tools(
+        self,
+        text: str,
+        enable_flashcards: bool = False,
+        enable_quiz: bool = False,
+        enable_summary: bool = False,
+        n_cards: int = 10,
+        n_questions: int = 5
+    ) -> Dict[str, Any]:
+        result = {}
+        print("========= run_study_tools CALLED============")
+        if enable_flashcards:
+            result["flashcards"] = generate_flashcards(text, n_cards)
+
+        if enable_quiz:
+            result["quiz"] = generate_quiz(text, n_questions)
+
+        if enable_summary:
+            result["summary"] = summarize_text(text)
+
+        return result
