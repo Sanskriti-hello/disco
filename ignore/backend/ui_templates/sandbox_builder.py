@@ -59,59 +59,72 @@ class SandboxBuilder:
         }
 
         return files
-
-    # =========================================================================
-    # GENERATORS
-    # =========================================================================
-
-    def _generate_package_json(self) -> str:
-        return json.dumps(
-            {
-                "name": "react-tailwind",
-                "private": True,
-                "version": "1.0.0",
-                "dependencies": {
-                    "react": "^18.2.0",
-                    "react-dom": "^18.2.0",
-                    "react-scripts": "5.0.1"
-                },
-                "devDependencies": {
-                    "tailwindcss": "^3.4.0",
-                    "postcss": "^8.4.32",
-                    "autoprefixer": "^10.4.16"
-                },
-                "scripts": {
-                    "start": "react-scripts start",
-                    "build": "react-scripts build"
-                }
-            },
-            indent=2
-        )
-
-    def _generate_tailwind_config(self) -> str:
-        return """module.exports = {
-  content: [
-    "./src/**/*.{js,jsx}",
-    "./public/index.html"
-  ],
-  theme: {
-    extend: {},
-  },
-  plugins: [],
-};
-"""
-
-    def _generate_postcss_config(self) -> str:
-        return """module.exports = {
-  plugins: {
-    tailwindcss: {},
-    autoprefixer: {},
-  },
-};
-"""
-
-    def _generate_index_html(self) -> str:
-        return """<!DOCTYPE html>
+    
+    def _load_package_json(self, template_path: Path) -> str:
+        """Load and enhance package.json with all necessary dependencies"""
+        package_path = template_path / "package.json"
+        
+        if package_path.exists():
+            with open(package_path, 'r', encoding='utf-8') as f:
+                package = json.load(f)
+        else:
+            package = {}
+        
+        # Ensure essential dependencies
+        dependencies = package.get("dependencies", {})
+        dependencies.update({
+            "react": "^18.2.0",
+            "react-dom": "^18.2.0",
+            "lucide-react": "latest",
+            "clsx": "latest",
+            "tailwind-merge": "latest",
+            "react-router-dom": "^6.22.0"
+        })
+        
+        # Add dev dependencies
+        dev_dependencies = package.get("devDependencies", {})
+        dev_dependencies.update({
+            "tailwindcss": "^3.4.0",
+            "postcss": "^8.4.32",
+            "autoprefixer": "^10.4.16",
+            "@vitejs/plugin-react": "^4.2.0",
+            "vite": "^5.0.0"
+        })
+        
+        package["dependencies"] = dependencies
+        package["devDependencies"] = dev_dependencies
+        package["scripts"] = {
+            "dev": "vite",
+            "build": "vite build",
+            "preview": "vite preview"
+        }
+        
+        return json.dumps(package, indent=2)
+    
+    def _get_component_name(self, template_id: str) -> str:
+        """Get main component filename for template"""
+        component_map = {
+            # Code Templates
+            "code-1": "Frame22",
+            # Generic Templates
+            "generic-1": "Frame15",
+            "generic-2": "Frame15",
+            # Shopping Templates
+            "shopping-1": "Frame1",
+            # Entertainment Templates
+            "entertainment-1": "Frame26",
+            "entertainment-2": "Frame27",
+            # Study Templates
+            "study-1": "Frame",  # Uses index.tsx export
+            # Travel Templates
+            "travel-1": "Frame",  # Uses index.tsx export
+            "travel-2": "index"   # Uses index.tsx export
+        }
+        return component_map.get(template_id, "Frame15")
+    
+    def _generate_index_html(self, template_id: str) -> str:
+        """Generate index.html with proper Tailwind setup"""
+        return '''<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
