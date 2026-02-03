@@ -132,8 +132,14 @@ Create 1-5 clusters based on tab similarity. Combine related topics.`;
     const data = await response.json();
     console.log('LLM Raw Data:', data);
 
-    if (!data.choices || !data.choices[0]) {
-      throw new Error("Malformed LLM response");
+    if (data.error) {
+      console.error("Groq API Error in clusterTabs:", data.error);
+      throw new Error(`Groq API Error: ${data.error.message}`);
+    }
+
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error("Malformed LLM response in clusterTabs:", data);
+      throw new Error("Malformed LLM response from Groq API.");
     }
 
     const parsed = JSON.parse(data.choices[0].message.content);
@@ -233,7 +239,12 @@ What domain should handle this?`;
       const data = await response.json();
       console.log('Domain Selection Raw Data:', data);
 
-      if (!data.error) {
+      if (data.error) {
+        console.error("Groq API Error in selectDomain:", data.error);
+        throw new Error(`Groq API Error: ${data.error.message}`);
+      }
+
+      if (data.choices && data.choices[0] && data.choices[0].message) {
         const result = JSON.parse(data.choices[0].message.content);
         const domain = VALID_DOMAINS.includes(result.domain) ? result.domain : "generic";
 
@@ -244,6 +255,9 @@ What domain should handle this?`;
           userPrompt: userPrompt,
           timestamp: Date.now()
         };
+      } else {
+        console.error("Malformed LLM response in selectDomain:", data);
+        throw new Error("Malformed LLM response from Groq API.");
       }
     } catch (error) {
       console.error('Domain selection failed:', error);
@@ -270,9 +284,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'clusterTabs') {
     (async () => {
       try {
-        const apiKey = request.apiKey;
-        if (!apiKey) {
-          sendResponse({ error: 'API key required' });
+        // IMPORTANT: Replace with your actual Groq API key
+        const apiKey = "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";
+
+        if (!apiKey ||  apiKey.length < 20) {
+          sendResponse({ error: 'API key is not configured or is invalid. Please add your key to background.js and rebuild the extension.' });
           return;
         }
 
@@ -311,7 +327,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'selectDomain') {
     (async () => {
       try {
-        const apiKey = request.apiKey;
+        // IMPORTANT: Replace with your actual Groq API key
+        const apiKey = "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";
+
+        if (!apiKey || apiKey.length < 20) {
+          sendResponse({ error: 'API key is not configured or is invalid. Please add your key to background.js and rebuild the extension.' });
+          return;
+        }
         const clusterId = request.clusterId;
         const userPrompt = request.userPrompt || "";
 

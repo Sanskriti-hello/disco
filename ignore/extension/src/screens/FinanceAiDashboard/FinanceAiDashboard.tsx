@@ -1,8 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ClusterSelector } from "../../components/ClusterSelector";
 
 // Inline SVG icons to avoid 403 errors from external sources
-// ...existing code...
 const Icons = {
   logo: (
     <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
@@ -31,33 +30,38 @@ const Icons = {
       <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   ),
-
-  // Replaced invalid empty parens with null or minimal placeholders
-  settings: null,
-  bell: null,
-  chat: null,
-  wallet: null,
+  settings: (
+    <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  ),
+  bell: (
+    <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  chat: (
+    <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  wallet: (
+    <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
+      <path d="M21 12.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-1.5" stroke="currentColor" strokeWidth="2" />
+      <circle cx="18" cy="12" r="2" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  ),
   arrow: (
     <svg viewBox="0 0 24 24" fill="none" className="w-full h-full">
-      <path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M7 17L17 7M17 7H7M17 7v10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
 };
-// ...existing code...
 
 export const FinanceAIDashboard = (): JSX.Element => {
   const [isClusterSelectorOpen, setIsClusterSelectorOpen] = useState(false);
   const [dashboardConfig, setDashboardConfig] = useState<any>(null);
-
-  // Load dashboard config from storage on mount
-  useEffect(() => {
-    chrome.storage.local.get('dashboardConfig', (result) => {
-      if (result.dashboardConfig) {
-        console.log('✅ Loaded dashboard config from storage:', result.dashboardConfig.selected_template);
-        setDashboardConfig(result.dashboardConfig);
-      }
-    });
-  }, []);
 
   // If dashboard is generated, show the dashboard screen
   if (dashboardConfig) {
@@ -79,8 +83,6 @@ export const FinanceAIDashboard = (): JSX.Element => {
               src={dashboardConfig.sandbox_embed_url}
               className="w-full h-full border-none"
               title="Dashboard"
-              style={{ width: '100%', height: '100%', border: 'none' }}
-              sandbox="allow-scripts allow-popups"
             />
           ) : (
             <div className="p-8 overflow-auto h-full">
