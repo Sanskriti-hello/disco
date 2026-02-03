@@ -1,3 +1,40 @@
 {
-  "photos": [{}, {}, {}, {}]
+  "header": {
+    "title": "Travel",
+    "homeIcon": "⌂",
+    "userIcon": "👤",
+    "infoIcon": "ℹ"
+  },
+  "main": {
+    "calendar": {
+      "prev": "<",
+      "next": ">",
+      "month": "Sep",
+      "year": "2025",
+      "days": ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
+    },
+    "textBox": {
+      "text": "text"
+    },
+    "photos": [
+      { "description": "Photo desc 1" },
+      { "description": "Photo desc 2" },
+      { "description": "Photo desc 3" },
+      { "description": "Photo desc 4" }
+    ],
+    "inputBar": {
+      "backIcon": "←",
+      "placeholder": "Input text",
+      "closeIcon": "✕"
+    }
+  },
+  "footer": {
+    "nav": [
+      { "icon": "✈", "color": "orange" },
+      { "icon": "🏖", "color": "yellow" },
+      { "icon": "🏨", "color": "blue" },
+      { "icon": "🚗", "color": "green" },
+      { "icon": "🍽", "color": "red" }
+    ]
+  }
 }

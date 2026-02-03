@@ -1,16 +1,47 @@
 {
-  "photos": [{"id": 1}, {"id": 2}, {"id": 3}, {"id": 4}, {"id": 5}, {"id": 6}],
-  "menu": [
-    {"label": "Menu Label", "description": "Menu description.", "shortcut": "A"},
-    {"label": "Menu Label", "description": "Menu description.", "shortcut": "A"},
-    {"label": "Menu Label", "description": "Menu description.", "shortcut": "A"},
-    {"label": "Menu Label", "description": "Menu description.", "shortcut": "A"},
-    {"label": "Menu Label", "description": "Menu description.", "shortcut": "A"}
-  ],
-  "accordion": [
-    {"title": "Title", "content": "Answer the frequently asked question in a simple sentence, a longish paragraph, or even in a list."},
-    {"title": "Title", "content": "Answer the frequently asked question in a simple sentence, a longish paragraph, or even in a list."},
-    {"title": "Title", "content": "Answer the frequently asked question in a simple sentence, a longish paragraph, or even in a list."},
-    {"title": "Title", "content": "Answer the frequently asked question in a simple sentence, a longish paragraph, or even in a list."}
-  ]
+  "header": {
+    "title": "Travel",
+    "homeIcon": "⌂",
+    "userIcon": "👤",
+    "infoIcon": "ℹ"
+  },
+  "photos": {
+    "description": "Photo desc",
+    "items": [{"id": 1}, {"id": 2}, {"id": 3}, {"id": 4}, {"id": 5}, {"id": 6}]
+  },
+  "inputBar": {
+    "backIcon": "←",
+    "placeholder": "Input text",
+    "closeIcon": "✕"
+  },
+  "main": {
+    "calendar": {
+      "prev": "<",
+      "next": ">",
+      "month": "Sep",
+      "year": "2025",
+      "days": ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
+    },
+    "menu": {
+      "heading": "Heading",
+      "subheading": "Heading",
+      "icon": "⭐",
+      "items": [
+        {"label": "Menu Label", "description": "Menu description.", "shortcut": "A"},
+        {"label": "Menu Label", "description": "Menu description.", "shortcut": "A"},
+        {"label": "Menu Label", "description": "Menu description.", "shortcut": "A"},
+        {"label": "Menu Label", "description": "Menu description.", "shortcut": "A"},
+        {"label": "Menu Label", "description": "Menu description.", "shortcut": "A"}
+      ]
+    },
+    "accordion": {
+      "arrowIcon": "^",
+      "items": [
+        {"title": "Title", "content": "Answer the frequently asked question in a simple sentence, a longish paragraph, or even in a list."},
+        {"title": "Title", "content": "Answer the frequently asked question in a simple sentence, a longish paragraph, or even in a list."},
+        {"title": "Title", "content": "Answer the frequently asked question in a simple sentence, a longish paragraph, or even in a list."},
+        {"title": "Title", "content": "Answer the frequently asked question in a simple sentence, a longish paragraph, or even in a list."}
+      ]
+    }
+  }
 }
