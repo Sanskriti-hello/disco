@@ -1,4 +1,14 @@
 {
+  "header": {
+    "brand": "SHOPPING",
+    "navIcons": "🏠 👤 ⓘ"
+  },
+  "leftQuote": "\"Quote\"",
+  "productHighlight": {
+    "name": "Product name",
+    "text": "Text"
+  },
+  "itemButtonText": "TEXT",
   "items": [
     { "id": 1, "title": "TXT" },
     { "id": 2, "title": "TXT" },

@@ -5,19 +5,19 @@ export default function App() {
   return (
     <div className="page">
       <header className="topbar">
-        <h1 className="brand">SHOPPING</h1>
-        <nav className="icons">🏠 👤 ⓘ</nav>
+        <h1 className="brand">{data.header.brand}</h1>
+        <nav className="icons">{data.header.navIcons}</nav>
       </header>
 
       <main className="container">
         <section className="left-quote">
-          <div className="quote-box">“Quote"</div>
+          <div className="quote-box">{data.leftQuote}</div>
         </section>
 
         <section className="product-highlight">
           <div className="product-card">
-            <h2>Product name</h2>
-            <p>Text</p>
+            <h2>{data.productHighlight.name}</h2>
+            <p>{data.productHighlight.text}</p>
           </div>
           <div className="fav">♡</div>
         </section>
@@ -28,7 +28,7 @@ export default function App() {
               <div className="item" key={it.id}>
                 <div className="thumb" />
                 <div className="item-title">{it.title}</div>
-                <button className="btn">TEXT</button>
+                <button className="btn">{data.itemButtonText}</button>
               </div>
             ))}
           </div>

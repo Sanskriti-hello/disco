@@ -1,3 +1,24 @@
 {
+  "header": {
+    "title": "ENTERTAINMENT",
+    "navIcons": "🏠 👤 ⓘ"
+  },
+  "leftColumn": {
+    "label": "More Like This"
+  },
+  "rightColumn": {
+    "topBox": "cat",
+    "textBox": "Text"
+  },
+  "actionBar": {
+    "buttons": [
+      { "id": 1, "label": "Button", "primary": false },
+      { "id": 2, "label": "Button", "primary": true }
+    ],
+    "icons": [
+      { "id": 1, "icon": "📈" },
+      { "id": 2, "icon": "♡" }
+    ]
+  },
   "items": [{}, {}, {}, {}, {}, {}, {}, {}]
 }

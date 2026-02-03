@@ -6,8 +6,9 @@ import json
 import re
 
 load_dotenv()
-
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+API_KEY='AIzaSyClQjunTyvCSDvSnJSJRMu6F5HVf8dnM7g'
+# client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+client = genai.Client(api_key=API_KEY)
 
 def generate_flashcards(notes: str, n_cards: int = 10):
     prompt = f"""

@@ -1,7 +1,15 @@
 {
-  "sections": [
-    { "id": 1, "name": "sidebar" },
-    { "id": 2, "name": "content" },
-    { "id": 3, "name": "footer" }
-  ]
+  "header": {
+    "title": "CODE",
+    "navIcons": "🏠 👤 ⓘ"
+  },
+  "sidebar": {
+    "frameLabel": "Frame 25",
+    "searchPlaceholder": "Hinted search text",
+    "content": "TEXT"
+  },
+  "mainContent": {
+    "topBox": "Test Code",
+    "bottomBox": "Test"
+  }
 }

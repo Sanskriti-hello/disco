@@ -1,4 +1,29 @@
 {
+  "header": {
+    "title": "ENTERTAINMENT",
+    "navIcons": "🏠 👤 ⓘ"
+  },
+  "calendar": {
+    "month": "Sep",
+    "year": "2025",
+    "activeDates": [9, 19]
+  },
+  "buttons": [
+    { "id": 1, "label": "Button" },
+    { "id": 2, "label": "Button" }
+  ],
+  "searchPlaceholder": "Hinted search text",
+  "leftSectionLabel": "More Like This",
+  "centerSection": {
+    "titleBox": {
+      "title": "Title",
+      "body": "Body text"
+    },
+    "watchSection": "WHERE TO WATCH"
+  },
+  "rightSection": {
+    "heading": "Heading"
+  },
   "items": [{}, {}, {}, {}, {}, {}, {}, {}],
   "menuItems": [
     { "id": 1, "label": "Menu Label", "shortcut": "⌘ A" },

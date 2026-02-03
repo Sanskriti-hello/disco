@@ -5,8 +5,8 @@ export default function App() {
   return (
     <div className="page">
       <header className="topbar">
-        <h1 className="title">ENTERTAINMENT</h1>
-        <nav className="nav-icons">🏠 👤 ⓘ</nav>
+        <h1 className="title">{data.header.title}</h1>
+        <nav className="nav-icons">{data.header.navIcons}</nav>
       </header>
 
       <div className="main-container">
@@ -14,8 +14,8 @@ export default function App() {
           <div className="calendar-widget">
             <div className="calendar-header">
               <span>&lt;</span>
-              <span>Sep</span>
-              <span>2025</span>
+              <span>{data.calendar.month}</span>
+              <span>{data.calendar.year}</span>
               <span>&gt;</span>
             </div>
             <div className="calendar-grid">
@@ -27,37 +27,38 @@ export default function App() {
               <div className="calendar-day">Fr</div>
               <div className="calendar-day">Sa</div>
               {Array.from({ length: 30 }).map((_, i) => (
-                <div key={i} className={`calendar-date ${i === 9 || i === 19 ? 'active' : ''}`}>
+                <div key={i} className={`calendar-date ${data.calendar.activeDates.includes(i + 1) ? 'active' : ''}`}>
                   {i + 1}
                 </div>
               ))}
             </div>
           </div>
           <div className="button-group">
-            <button>Button</button>
-            <button>Button</button>
+            {data.buttons.map((btn) => (
+              <button key={btn.id}>{btn.label}</button>
+            ))}
           </div>
           <div className="search-box">
             <span className="menu-icon">≡</span>
-            <input type="text" placeholder="Hinted search text" />
+            <input type="text" placeholder={data.searchPlaceholder} />
             <button className="search-btn">🔍</button>
           </div>
-          <p className="more-label">More Like This</p>
+          <p className="more-label">{data.leftSectionLabel}</p>
         </section>
 
         <section className="center-section">
           <div className="title-box">
-            <h3>Title</h3>
-            <p>Body text</p>
+            <h3>{data.centerSection.titleBox.title}</h3>
+            <p>{data.centerSection.titleBox.body}</p>
           </div>
           <div className="watch-section">
-            <h3>WHERE TO WATCH</h3>
+            <h3>{data.centerSection.watchSection}</h3>
           </div>
         </section>
 
         <aside className="right-section">
           <div className="menu-widget">
-            <h3 className="menu-heading">Heading</h3>
+            <h3 className="menu-heading">{data.rightSection.heading}</h3>
             {data.menuItems.map((item) => (
               <div className="menu-item" key={item.id}>
                 <span className="menu-icon">★</span>
@@ -70,7 +71,7 @@ export default function App() {
       </div>
 
       <section className="carousel-section">
-        <p className="carousel-label">More Like This</p>
+        <p className="carousel-label">{data.leftSectionLabel}</p>
         <div className="carousel-container">
           <button className="carousel-btn">‹</button>
           <div className="carousel">

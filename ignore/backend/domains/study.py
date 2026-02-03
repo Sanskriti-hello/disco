@@ -1,9 +1,8 @@
 from typing import Dict, List, Any, Optional
 from .base import BaseDomain
-from backend.mcp_tools.flashcard import generate_flashcards
-from backend.mcp_tools.quiz import generate_quiz
-from backend.mcp_tools.summarize import summarize_text
-
+from mcp_tools.flashcard import generate_flashcards
+# from mcp_tools.flashcard import generate_quiz
+# from mcp_tools.flashcard import summarize_text
 
 class StudyDomain(BaseDomain):
     """
@@ -323,11 +322,11 @@ class StudyDomain(BaseDomain):
         print("========= run_study_tools CALLED============")
         if enable_flashcards:
             result["flashcards"] = generate_flashcards(text, n_cards)
-
-        if enable_quiz:
-            result["quiz"] = generate_quiz(text, n_questions)
-
-        if enable_summary:
-            result["summary"] = summarize_text(text)
+        enable_quiz=None
+        # if enable_quiz:
+        #     result["quiz"] = generate_quiz(text, n_questions)
+        enable_summary=None
+        # if enable_summary:
+        #     result["summary"] = summarize_text(text)
 
         return result
