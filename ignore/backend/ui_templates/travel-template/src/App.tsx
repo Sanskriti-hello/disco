@@ -5,11 +5,11 @@ export default function App() {
   return (
     <div className="page">
       <header className="topbar">
-        <h1 className="title">Travel</h1>
+        <h1 className="title">{data.header.title}</h1>
         <div className="header-buttons">
-          <button className="header-btn home-btn">⌂</button>
-          <button className="header-btn user-btn">👤</button>
-          <button className="header-btn info-btn">ℹ</button>
+          <button className="header-btn home-btn">{data.header.homeIcon}</button>
+          <button className="header-btn user-btn">{data.header.userIcon}</button>
+          <button className="header-btn info-btn">{data.header.infoIcon}</button>
         </div>
       </header>
 
@@ -17,23 +17,19 @@ export default function App() {
         <section className="left-column">
           <div className="calendar-widget">
             <div className="calendar-header">
-              <button>&lt;</button>
+              <button>{data.main.calendar.prev}</button>
               <select>
-                <option>Sep</option>
+                <option>{data.main.calendar.month}</option>
               </select>
               <select>
-                <option>2025</option>
+                <option>{data.main.calendar.year}</option>
               </select>
-              <button>&gt;</button>
+              <button>{data.main.calendar.next}</button>
             </div>
             <div className="calendar-grid">
-              <div>Su</div>
-              <div>Mo</div>
-              <div>Tu</div>
-              <div>We</div>
-              <div>Th</div>
-              <div>Fr</div>
-              <div>Sa</div>
+              {data.main.calendar.days.map((day) => (
+                <div key={day}>{day}</div>
+              ))}
               {Array.from({ length: 30 }).map((_, i) => (
                 <div key={i} className={`date ${i === 13 || i === 19 ? 'active' : ''}`}>
                   {i + 1}
@@ -42,23 +38,23 @@ export default function App() {
             </div>
           </div>
           <div className="text-box">
-            <p>text</p>
+            <p>{data.main.textBox.text}</p>
           </div>
         </section>
 
         <section className="right-column">
           <div className="photos-grid">
-            {data.photos.map((_, idx) => (
+            {data.main.photos.map((photo, idx) => (
               <div className="photo-item" key={idx}>
-                <p>Photo desc</p>
+                <p>{photo.description}</p>
               </div>
             ))}
           </div>
 
           <div className="input-bar">
-            <button className="back-btn">←</button>
-            <input type="text" placeholder="Input text" />
-            <button className="close-btn">✕</button>
+            <button className="back-btn">{data.main.inputBar.backIcon}</button>
+            <input type="text" placeholder={data.main.inputBar.placeholder} />
+            <button className="close-btn">{data.main.inputBar.closeIcon}</button>
           </div>
 
           <div className="content-box" />
@@ -66,11 +62,11 @@ export default function App() {
       </div>
 
       <nav className="bottom-nav">
-        <div className="nav-item orange">✈</div>
-        <div className="nav-item yellow">🏖</div>
-        <div className="nav-item blue">🏨</div>
-        <div className="nav-item green">🚗</div>
-        <div className="nav-item red">🍽</div>
+        {data.footer.nav.map((item, idx) => (
+          <div className={`nav-item ${item.color}`} key={idx}>
+            {item.icon}
+          </div>
+        ))}
       </nav>
     </div>
   );

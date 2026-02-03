@@ -1,10 +1,25 @@
 {
-  "boxes": [{}, {}, {}, {}],
-  "links": [
-    { "id": 1, "text": "LINKS TO VISIT" },
-    { "id": 2, "text": "LINKS TO VISIT" },
-    { "id": 3, "text": "LINKS TO VISIT" },
-    { "id": 4, "text": "LINKS TO VISIT" },
-    { "id": 5, "text": "LINKS TO VISIT" }
-  ]
+  "header": {
+    "title": "TITLE",
+    "searchPlaceholder": "Hinted search text",
+    "searchIcon": "🔍",
+    "navIcons": "🏠 👤 ⓘ"
+  },
+  "main": {
+    "summary": {
+      "title": "SUMMARY",
+      "text": "TEXT"
+    },
+    "boxes": [{}, {}, {}, {}]
+  },
+  "sidebar": {
+    "title": "LINKS TO VISIT",
+    "links": [
+      { "id": 1, "text": "Link 1" },
+      { "id": 2, "text": "Link 2" },
+      { "id": 3, "text": "Link 3" },
+      { "id": 4, "text": "Link 4" },
+      { "id": 5, "text": "Link 5" }
+    ]
+  }
 }
