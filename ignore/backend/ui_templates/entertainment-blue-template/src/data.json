@@ -1,0 +1,11 @@
+{
+  "items": [{}, {}, {}, {}, {}, {}, {}, {}],
+  "menuItems": [
+    { "id": 1, "label": "Menu Label", "shortcut": "⌘ A" },
+    { "id": 2, "label": "Menu description", "shortcut": "" },
+    { "id": 3, "label": "Menu Label", "shortcut": "⌘ A" },
+    { "id": 4, "label": "Menu description", "shortcut": "" },
+    { "id": 5, "label": "Menu Label", "shortcut": "⌘ A" },
+    { "id": 6, "label": "Menu description", "shortcut": "" }
+  ]
+}

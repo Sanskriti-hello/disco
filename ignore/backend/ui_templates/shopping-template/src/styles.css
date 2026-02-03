@@ -1,0 +1,28 @@
+:root{ --bg:#ffffff; --accent:#c98bed; --accent-2:#d69ff0; --dark:#2b1b2b }
+*{box-sizing:border-box}
+html,body,#root{height:100%;margin:0;font-family:Inter, system-ui, Arial}
+.page{background:var(--bg);min-height:100%}
+.topbar{background:linear-gradient(90deg,var(--accent),var(--accent-2));padding:28px 36px;border-bottom-left-radius:12px;border-bottom-right-radius:12px;display:flex;align-items:center;justify-content:space-between}
+.brand{font-family:Georgia, 'Times New Roman', serif;font-size:48px;letter-spacing:6px;margin:0;color:var(--dark)}
+.icons{opacity:0.9}
+.container{max-width:1100px;margin:24px auto;padding:0 20px}
+.left-quote{float:left;width:30%}
+.quote-box{background:var(--accent);padding:22px;border-radius:12px;color:#fff}
+.product-highlight{margin-left:32%;display:flex;align-items:flex-start;gap:12px}
+.product-card{background:var(--accent);padding:20px;border-radius:12px;flex:1;color:#2b1b2b;min-height:120px}
+.fav{font-size:24px;color:var(--accent-2);align-self:flex-start}
+.carousel{margin-top:20px;background:linear-gradient(90deg,#efd7ff22,#efd7ff11);padding:18px;border-radius:12px}
+.carousel-inner{display:flex;gap:14px;overflow:auto;padding:8px}
+.item{background:#fff;border-radius:12px;padding:12px;width:120px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.thumb{background:var(--accent);width:56px;height:56px;border-radius:8px}
+.btn{background:#000;color:#fff;border:none;padding:6px 10px;border-radius:6px}
+.reviews{display:flex;gap:12px;margin-top:18px}
+.rev{background:var(--accent);padding:14px;border-radius:12px;flex:1;display:flex;gap:12px;align-items:flex-start}
+.avatar{background:#fff;width:28px;height:28px;border-radius:50%}
+.meta{flex:1}
+.rev-title{font-weight:600}
+.stars{color:gold}
+.rev-text{background:#fff;padding:8px;border-radius:8px;margin-top:8px}
+.footer-area{margin-top:20px}
+.big-box{height:140px;background:var(--accent);border-radius:12px}
+@media(max-width:800px){.product-highlight{margin-left:0;flex-direction:column}.left-quote{width:100%;float:none}.reviews{flex-direction:column}}

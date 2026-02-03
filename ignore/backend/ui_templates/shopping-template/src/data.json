@@ -1,0 +1,15 @@
+{
+  "items": [
+    { "id": 1, "title": "TXT" },
+    { "id": 2, "title": "TXT" },
+    { "id": 3, "title": "TXT" },
+    { "id": 4, "title": "TXT" },
+    { "id": 5, "title": "TXT" },
+    { "id": 6, "title": "TXT" }
+  ],
+  "reviews": [
+    { "id": 1, "title": "Title", "stars": 5, "text": "Review" },
+    { "id": 2, "title": "Title", "stars": 4, "text": "Review" },
+    { "id": 3, "title": "Title", "stars": 3, "text": "Review" }
+  ]
+}

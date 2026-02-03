@@ -1,0 +1,44 @@
+:root{--blue:#0080ff;--dark-blue:#0056b3;--light-bg:#f0f0f0;--text:#000}
+*{box-sizing:border-box}
+html,body,#root{height:100%;margin:0;font-family:Arial, sans-serif;background:var(--light-bg)}
+.page{background:var(--light-bg);min-height:100vh;display:flex;flex-direction:column}
+.topbar{background:var(--blue);padding:16px 32px;display:flex;align-items:center;justify-content:space-between;color:#fff}
+.title{font-size:28px;font-weight:bold;margin:0;letter-spacing:2px}
+.nav-icons{font-size:20px;gap:16px;display:flex;opacity:0.9}
+.main-container{display:flex;gap:20px;padding:24px 32px}
+.left-section{width:240px;display:flex;flex-direction:column;gap:16px}
+.calendar-widget{background:#fff;border-radius:12px;padding:16px;border:3px solid var(--blue)}
+.calendar-header{display:flex;justify-content:space-around;align-items:center;margin-bottom:12px;font-size:14px;font-weight:600}
+.calendar-header span{cursor:pointer}
+.calendar-grid{display:grid;grid-template-columns:repeat(7, 1fr);gap:4px}
+.calendar-day{font-weight:700;font-size:11px;text-align:center;padding:4px 0;color:#666}
+.calendar-date{border:1px solid #ddd;padding:8px 4px;text-align:center;font-size:12px;border-radius:4px;cursor:pointer}
+.calendar-date.active{background:var(--blue);color:#fff;font-weight:bold}
+.button-group{display:flex;gap:10px}
+.button-group button{flex:1;background:var(--blue);color:#fff;border:none;padding:10px;border-radius:6px;font-weight:600;cursor:pointer}
+.search-box{display:flex;align-items:center;background:#fff;border:2px solid var(--blue);border-radius:20px;padding:8px 12px;gap:8px}
+.menu-icon{color:var(--text);font-size:16px}
+.search-box input{border:none;outline:none;background:transparent;color:var(--text);font-size:12px;flex:1}
+.search-btn{border:none;background:none;color:#666;cursor:pointer;font-size:14px}
+.more-label{margin:12px 0;font-size:16px;font-weight:600;color:var(--text)}
+.center-section{flex:1;display:flex;flex-direction:column;gap:16px}
+.title-box{background:#fff;border:2px solid #ccc;border-radius:10px;padding:20px;min-height:200px}
+.title-box h3{margin:0 0 12px 0;font-size:16px;font-weight:600}
+.title-box p{margin:0;color:#666;font-size:13px}
+.watch-section{background:var(--blue);border-radius:12px;padding:20px;flex:1;color:#fff}
+.watch-section h3{margin:0;font-size:16px;font-weight:600}
+.right-section{width:180px}
+.menu-widget{background:#fff;border-radius:12px;padding:16px;border:3px solid var(--blue)}
+.menu-heading{margin:0 0 12px 0;color:var(--text);font-size:16px;font-weight:600}
+.menu-item{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid #ddd;color:var(--text);font-size:12px}
+.menu-item:last-child{border-bottom:none}
+.menu-label{flex:1}
+.menu-shortcut{font-size:10px;opacity:0.7}
+.carousel-section{background:var(--blue);margin:0 32px 24px;padding:20px;border-radius:12px}
+.carousel-label{margin:0 0 12px 0;color:#fff;font-size:14px;font-weight:600}
+.carousel-container{display:flex;align-items:center;gap:12px}
+.carousel-btn{background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:24px;cursor:pointer;width:40px;height:40px;border-radius:6px;flex-shrink:0}
+.carousel-btn:hover{background:rgba(255,255,255,0.3)}
+.carousel{display:flex;gap:12px;overflow-x:auto;flex:1;scroll-behavior:smooth}
+.carousel-item{background:#fff;width:100px;height:100px;border-radius:8px;flex-shrink:0}
+@media(max-width:1000px){.main-container{flex-direction:column}.left-section{width:100%}.right-section{width:100%}}

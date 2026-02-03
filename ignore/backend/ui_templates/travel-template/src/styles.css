@@ -1,0 +1,44 @@
+:root{--blue:#2196f3;--light-bg:#e8f4f8;--text:#000;--light-gray:#f5f5f5}
+*{box-sizing:border-box}
+html,body,#root{height:100%;margin:0;font-family:Arial, sans-serif;background:var(--light-bg)}
+.page{background:var(--light-bg);min-height:100vh;display:flex;flex-direction:column}
+.topbar{background:linear-gradient(90deg,#b3d9e8 0%,#a0cce0 40%,#d4a574 60%,#dba870 100%);padding:32px 40px;display:flex;align-items:center;justify-content:space-between;position:relative;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1)}
+.topbar::after{content:'';position:absolute;right:0;top:0;width:50%;height:100%;background-image:url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100"><rect fill="%23d4a574" width="300" height="100"/><circle cx="50" cy="20" r="8" fill="%23f4d03f" opacity="0.7"/><circle cx="180" cy="15" r="6" fill="%23f4d03f" opacity="0.6"/><path d="M 120 50 Q 130 40 140 50 T 160 50" stroke="%23a0cce0" stroke-width="2" fill="none"/><path d="M 70 60 L 85 75 L 100 60 Z" fill="%23c9a961" opacity="0.8"/><path d="M 200 65 L 220 80 L 240 65 Z" fill="%23c9a961" opacity="0.8"/><line x1="0" y1="45" x2="300" y2="45" stroke="%23a0cce0" stroke-width="1" opacity="0.4"/></svg>');background-size:cover;opacity:0.8;z-index:0}
+.title{font-size:48px;font-weight:bold;margin:0;color:var(--text);letter-spacing:2px;position:relative;z-index:1}
+.header-buttons{display:flex;gap:16px;position:relative;z-index:2}
+.header-btn{width:50px;height:50px;border-radius:8px;background:#fff;border:3px solid #fff;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;transition:all 0.2s}
+.header-btn:hover{transform:scale(1.1);background:rgba(255,255,255,0.9)}
+.home-btn{}
+.user-btn{}
+.info-btn{}
+.main-container{display:flex;gap:24px;padding:24px 40px;flex:1}
+.left-column{width:240px;display:flex;flex-direction:column;gap:16px}
+.calendar-widget{background:#fff;border-radius:12px;padding:16px;border:4px solid var(--blue)}
+.calendar-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px}
+.calendar-header button{background:none;border:none;cursor:pointer;font-size:16px}
+.calendar-header select{border:none;background:transparent;font-size:13px;cursor:pointer}
+.calendar-grid{display:grid;grid-template-columns:repeat(7, 1fr);gap:2px}
+.calendar-grid div{font-size:12px;text-align:center;padding:8px 4px;font-weight:600;color:#666}
+.calendar-grid .date{background:#f0f0f0;border-radius:4px;cursor:pointer;color:var(--text)}
+.calendar-grid .date.active{background:var(--blue);color:#fff;font-weight:bold}
+.text-box{background:var(--blue);border-radius:12px;padding:16px;flex:1;display:flex;align-items:flex-start;color:#fff}
+.text-box p{margin:0;font-size:13px}
+.right-column{flex:1;display:flex;flex-direction:column;gap:16px}
+.photos-grid{display:grid;grid-template-columns:repeat(4, 1fr);gap:12px;background:var(--blue);padding:16px;border-radius:12px}
+.photo-item{background:#fff;border-radius:8px;aspect-ratio:1/1;display:flex;align-items:flex-end;justify-content:center;padding:12px}
+.photo-item p{margin:0;color:var(--blue);font-size:12px;font-weight:600}
+.input-bar{background:#fff;border-radius:24px;padding:8px 14px;display:flex;align-items:center;gap:10px;border:2px solid var(--blue)}
+.back-btn{background:none;border:none;cursor:pointer;font-size:16px;color:var(--blue)}
+.input-bar input{border:none;outline:none;background:transparent;flex:1;font-size:13px;color:var(--text)}
+.input-bar input::placeholder{color:#999}
+.close-btn{background:none;border:none;cursor:pointer;font-size:16px;color:#999}
+.content-box{background:var(--blue);border-radius:12px;flex:1;min-height:400px}
+.bottom-nav{display:flex;gap:12px;padding:16px 40px;background:#fff;justify-content:center;border-top:2px solid #ddd}
+.nav-item{width:60px;height:60px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:28px;cursor:pointer;transition:transform 0.2s;color:#fff;font-weight:bold}
+.nav-item:hover{transform:scale(1.1)}
+.nav-item.orange{background:#ff9800}
+.nav-item.yellow{background:#ffc107;color:#333}
+.nav-item.blue{background:#2196f3}
+.nav-item.green{background:#4caf50}
+.nav-item.red{background:#f44336}
+@media(max-width:900px){.main-container{flex-direction:column}.left-column{width:100%}.photos-grid{grid-template-columns:repeat(2, 1fr)}}

@@ -1,0 +1,10 @@
+{
+  "boxes": [{}, {}, {}, {}],
+  "links": [
+    { "id": 1, "text": "LINKS TO VISIT" },
+    { "id": 2, "text": "LINKS TO VISIT" },
+    { "id": 3, "text": "LINKS TO VISIT" },
+    { "id": 4, "text": "LINKS TO VISIT" },
+    { "id": 5, "text": "LINKS TO VISIT" }
+  ]
+}

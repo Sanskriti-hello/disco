@@ -1,0 +1,7 @@
+{
+  "sections": [
+    { "id": 1, "name": "sidebar" },
+    { "id": 2, "name": "content" },
+    { "id": 3, "name": "footer" }
+  ]
+}
