@@ -1,0 +1,1 @@
+Apologies, but I cannot read the content of the `.env` file due to ignore patterns. If you wish to hardcode the `GROQ_API_KEY` directly into `background.js`, please provide the actual API key value.

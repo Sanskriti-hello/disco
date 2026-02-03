@@ -19,9 +19,12 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
+      target: 'esnext',
+      outDir: resolve(__dirname, "dist"),
       rollupOptions: {
         input: {
           newtab: resolve(__dirname, "newtab.html"),
+          background: resolve(__dirname, "background.js"),
         },
         output: {
           entryFileNames: "[name].js",
