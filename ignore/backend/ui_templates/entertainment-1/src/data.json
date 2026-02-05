@@ -1,0 +1,117 @@
+{
+  "header": {
+    "title": "ENTERTAINMENT",
+    "navIcons": "🏠 👤 ⓘ"
+  },
+  "leftColumn": {
+    "label": "More Like This",
+    "items": [
+      {
+        "id": 1,
+        "title": "",
+        "imageUrl": "",
+        "url": ""
+      },
+      {
+        "id": 2,
+        "title": "",
+        "imageUrl": "",
+        "url": ""
+      },
+      {
+        "id": 3,
+        "title": "",
+        "imageUrl": "",
+        "url": ""
+      }
+    ]
+  },
+  "rightColumn": {
+    "featured": {
+      "title": "Featured Title",
+      "description": "Description",
+      "imageUrl": "",
+      "rating": 0,
+      "year": "",
+      "genre": ""
+    },
+    "topBox": "Featured Content",
+    "textBox": "Summary and description"
+  },
+  "actionBar": {
+    "buttons": [
+      {
+        "id": 1,
+        "label": "Watch Now",
+        "primary": false,
+        "url": ""
+      },
+      {
+        "id": 2,
+        "label": "Add to List",
+        "primary": true,
+        "url": ""
+      }
+    ],
+    "icons": [
+      {
+        "id": 1,
+        "icon": "📈",
+        "action": "trending"
+      },
+      {
+        "id": 2,
+        "icon": "♡",
+        "action": "favorite"
+      }
+    ]
+  },
+  "items": [
+    {
+      "id": 1,
+      "title": "",
+      "imageUrl": "",
+      "url": "",
+      "rating": 0
+    },
+    {
+      "id": 2,
+      "title": "",
+      "imageUrl": "",
+      "url": "",
+      "rating": 0
+    },
+    {
+      "id": 3,
+      "title": "",
+      "imageUrl": "",
+      "url": "",
+      "rating": 0
+    },
+    {
+      "id": 4,
+      "title": "",
+      "imageUrl": "",
+      "url": "",
+      "rating": 0
+    },
+    {
+      "id": 5,
+      "title": "",
+      "imageUrl": "",
+      "url": "",
+      "rating": 0
+    },
+    {
+      "id": 6,
+      "title": "",
+      "imageUrl": "",
+      "url": "",
+      "rating": 0
+    }
+  ],
+  "actions": {
+    "saveToSheets": "https://docs.google.com/spreadsheets/create",
+    "shareToDoc": "https://docs.google.com/document/create"
+  }
+}

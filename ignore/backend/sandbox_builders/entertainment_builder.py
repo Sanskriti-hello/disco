@@ -568,6 +568,342 @@ def _extract_json_from_output(text: str) -> str:
 
 
 # ============================================================================
+# DIRECT MCP TOOL DATA FILLER
+# ============================================================================
+
+
+def fill_data_with_mcp_tools(template_data: Dict, domain: str, context: str) -> Dict:
+    """
+    Directly fill template data by calling MCP tools based on domain.
+    
+    This bypasses the LLM agent and directly queries the appropriate MCP tools
+    to get real data for templates.
+    
+    Args:
+        template_data: The template JSON to fill
+        domain: Domain type (shopping, travel, entertainment, study, code, generic)
+        context: User's context/prompt describing what they want
+        
+    Returns:
+        Filled template data with real content from MCP tools
+    """
+    print(f"🔧 Filling data with MCP tools for domain: {domain}")
+    print(f"📝 Context: {context[:100]}...")
+    
+    filled = template_data.copy()
+    
+    try:
+        # Initialize search client for images and web data
+        search_client = SearchClient()
+        
+        # Extract search query from context
+        search_query = context[:100] if context else domain
+        
+        # =================================================================
+        # SHOPPING DOMAIN
+        # =================================================================
+        if domain.lower() == "shopping":
+            try:
+                from mcp_tools.amazon import AmazonClient
+                amazon = AmazonClient()
+                
+                # Search for products
+                products_result = amazon.search_products(search_query, country="US")
+                products = products_result.get("data", {}).get("products", [])[:6]
+                
+                print(f"📦 Found {len(products)} products from Amazon")
+                
+                # Fill product highlight
+                if products and "main" in filled:
+                    first_product = products[0]
+                    if "productHighlight" in filled["main"]:
+                        filled["main"]["productHighlight"]["name"] = first_product.get("title", "Product")[:50]
+                        filled["main"]["productHighlight"]["text"] = first_product.get("title", "")[:100]
+                        filled["main"]["productHighlight"]["price"] = first_product.get("price", {}).get("raw", "$0.00")
+                        filled["main"]["productHighlight"]["imageUrl"] = first_product.get("thumbnailImage", "")
+                        filled["main"]["productHighlight"]["productUrl"] = first_product.get("url", "")
+                    
+                    # Fill carousel items
+                    if "carousel" in filled["main"] and "items" in filled["main"]["carousel"]:
+                        for i, item in enumerate(filled["main"]["carousel"]["items"]):
+                            if i < len(products):
+                                product = products[i]
+                                item["title"] = product.get("title", "")[:30]
+                                item["imageUrl"] = product.get("thumbnailImage", "")
+                                item["price"] = product.get("price", {}).get("raw", "")
+                                item["url"] = product.get("url", "")
+                    
+                    # Fill reviews
+                    if "reviews" in filled["main"] and products:
+                        first_asin = products[0].get("asin")
+                        if first_asin:
+                            try:
+                                reviews_result = amazon.get_product_reviews(first_asin, country="US")
+                                reviews = reviews_result.get("data", {}).get("reviews", [])[:3]
+                                for i, review_item in enumerate(filled["main"]["reviews"].get("items", [])):
+                                    if i < len(reviews):
+                                        review = reviews[i]
+                                        review_item["title"] = review.get("title", "Great product")
+                                        review_item["text"] = review.get("body", "")[:150]
+                                        review_item["stars"] = int(review.get("rating", 4))
+                                        review_item["reviewerName"] = review.get("author", {}).get("name", "Customer")
+                            except Exception as e:
+                                print(f"⚠️ Reviews fetch failed: {e}")
+                                
+            except Exception as e:
+                print(f"⚠️ Amazon tool error: {e}")
+                # Fallback to web search
+                _fill_with_web_search(filled, search_client, search_query, "shopping")
+        
+        # =================================================================
+        # ENTERTAINMENT DOMAIN
+        # =================================================================
+        elif domain.lower() == "entertainment":
+            try:
+                from mcp_tools.movie import MovieClient
+                from mcp_tools.youtube import YouTubeMCP
+                
+                movie_client = MovieClient()
+                youtube = YouTubeMCP()
+                
+                # Search for movies/shows
+                movies_result = movie_client.search_by_title(search_query)
+                movies = movies_result.get("result", [])[:6]
+                
+                print(f"🎬 Found {len(movies)} movies/shows")
+                
+                # Fill featured content
+                if movies and "rightColumn" in filled:
+                    first_movie = movies[0]
+                    if "featured" in filled["rightColumn"]:
+                        filled["rightColumn"]["featured"]["title"] = first_movie.get("title", "")
+                        filled["rightColumn"]["featured"]["description"] = first_movie.get("overview", "")[:200]
+                        filled["rightColumn"]["featured"]["imageUrl"] = first_movie.get("imageSet", {}).get("horizontalPoster", {}).get("w480", "")
+                        filled["rightColumn"]["featured"]["rating"] = first_movie.get("rating", 0)
+                        filled["rightColumn"]["featured"]["year"] = str(first_movie.get("firstAirYear", first_movie.get("releaseYear", "")))
+                        filled["rightColumn"]["featured"]["genre"] = ", ".join(first_movie.get("genres", [])[:3])
+                    filled["rightColumn"]["topBox"] = first_movie.get("title", "Featured")
+                    filled["rightColumn"]["textBox"] = first_movie.get("overview", "")[:150]
+                
+                # Fill items list
+                if "items" in filled:
+                    for i, item in enumerate(filled["items"]):
+                        if i < len(movies):
+                            movie = movies[i]
+                            item["title"] = movie.get("title", "")
+                            item["imageUrl"] = movie.get("imageSet", {}).get("horizontalPoster", {}).get("w480", "")
+                            item["rating"] = movie.get("rating", 0)
+                            # Find streaming URL
+                            streaming = movie.get("streamingInfo", {}).get("us", [])
+                            if streaming:
+                                item["url"] = streaming[0].get("link", "")
+                
+                # Also get YouTube videos
+                try:
+                    videos = youtube.search_videos(search_query, max_results=3)
+                    if videos and "leftColumn" in filled and "items" in filled["leftColumn"]:
+                        for i, item in enumerate(filled["leftColumn"]["items"]):
+                            if i < len(videos):
+                                video = videos[i]
+                                item["title"] = video.get("title", "")[:40]
+                                item["imageUrl"] = video.get("thumbnail", "")
+                                item["url"] = f"https://www.youtube.com/watch?v={video.get('video_id', '')}"
+                except Exception as e:
+                    print(f"⚠️ YouTube fetch failed: {e}")
+                    
+            except Exception as e:
+                print(f"⚠️ Entertainment tool error: {e}")
+                _fill_with_web_search(filled, search_client, search_query, "entertainment")
+        
+        # =================================================================
+        # TRAVEL DOMAIN
+        # =================================================================
+        elif domain.lower() == "travel":
+            try:
+                from mcp_tools.Loc_Weath_Dis import LocationWeatherMCP
+                
+                loc_client = LocationWeatherMCP()
+                
+                # Get location info
+                location_query = search_query.replace("travel", "").replace("trip", "").strip()
+                
+                # Search for images of the destination
+                images_result = search_client.search_images_realtime(f"{location_query} travel destination", limit=4)
+                images = images_result.get("data", [])[:4]
+                
+                print(f"🏖️ Found {len(images)} travel images")
+                
+                if "main" in filled:
+                    # Fill destination info
+                    if "destination" in filled["main"]:
+                        filled["main"]["destination"]["name"] = location_query.title()
+                        filled["main"]["destination"]["description"] = f"Explore the beautiful {location_query}"
+                        filled["main"]["destination"]["mapsUrl"] = f"https://www.google.com/maps/search/{location_query.replace(' ', '+')}"
+                        if images:
+                            filled["main"]["destination"]["imageUrl"] = images[0].get("url", "")
+                    
+                    # Fill photos
+                    if "photos" in filled["main"]:
+                        for i, photo in enumerate(filled["main"]["photos"]):
+                            if i < len(images):
+                                photo["imageUrl"] = images[i].get("url", "")
+                                photo["description"] = images[i].get("title", f"Photo {i+1}")[:50]
+                                photo["mapsUrl"] = f"https://www.google.com/maps/search/{location_query.replace(' ', '+')}"
+                    
+                    # Fill text box
+                    if "textBox" in filled["main"]:
+                        filled["main"]["textBox"]["text"] = f"Discover amazing destinations in {location_query}. Plan your perfect trip with flights, hotels, and local experiences."
+                    
+                    # Fill hotels with web search
+                    if "hotels" in filled["main"]:
+                        hotels_search = search_client.search_brave_web(f"{location_query} best hotels booking", count=3)
+                        web_results = hotels_search.get("web", {}).get("results", [])[:3]
+                        for i, hotel in enumerate(filled["main"]["hotels"]):
+                            if i < len(web_results):
+                                result = web_results[i]
+                                hotel["name"] = result.get("title", "")[:40]
+                                hotel["bookingUrl"] = result.get("url", "")
+                                hotel["rating"] = 4.5  # Default rating
+                                
+            except Exception as e:
+                print(f"⚠️ Travel tool error: {e}")
+                _fill_with_web_search(filled, search_client, search_query, "travel")
+        
+        # =================================================================
+        # STUDY DOMAIN
+        # =================================================================
+        elif domain.lower() == "study":
+            try:
+                from mcp_tools.arxiv import ArxivClient
+                
+                arxiv = ArxivClient()
+                
+                # Search for papers
+                papers_result = arxiv.search_papers(search_query, max_results=5)
+                papers = papers_result if isinstance(papers_result, list) else []
+                
+                print(f"📚 Found {len(papers)} academic papers")
+                
+                if "main" in filled:
+                    # Fill topic info
+                    if "topic" in filled["main"]:
+                        filled["main"]["topic"]["title"] = search_query.title()
+                        filled["main"]["topic"]["description"] = f"Learn about {search_query}"
+                    
+                    # Fill summary
+                    if "summary" in filled["main"] and papers:
+                        first_paper = papers[0]
+                        filled["main"]["summary"]["title"] = first_paper.get("title", "Summary")[:60]
+                        filled["main"]["summary"]["text"] = first_paper.get("summary", "")[:300]
+                        filled["main"]["summary"]["source"] = "arXiv"
+                        filled["main"]["summary"]["sourceUrl"] = first_paper.get("link", "")
+                    
+                    # Fill key points
+                    if "keyPoints" in filled["main"] and papers:
+                        for i, point in enumerate(filled["main"]["keyPoints"]):
+                            if i < len(papers):
+                                paper = papers[i]
+                                point["point"] = paper.get("title", "")[:80]
+                                point["details"] = paper.get("summary", "")[:100]
+                    
+                    # Fill resources
+                    if "resources" in filled["main"]:
+                        for i, resource in enumerate(filled["main"]["resources"]):
+                            if i < len(papers):
+                                paper = papers[i]
+                                resource["title"] = paper.get("title", "")[:50]
+                                resource["url"] = paper.get("link", "")
+                                resource["type"] = "paper"
+                                
+            except Exception as e:
+                print(f"⚠️ Study tool error: {e}")
+                _fill_with_web_search(filled, search_client, search_query, "study")
+        
+        # =================================================================
+        # GENERIC / OTHER DOMAINS - Use web search
+        # =================================================================
+        else:
+            _fill_with_web_search(filled, search_client, search_query, domain)
+        
+        # =================================================================
+        # ALWAYS: Fill Google integration URLs
+        # =================================================================
+        if "actions" in filled:
+            if "openInMaps" in filled["actions"]:
+                filled["actions"]["openInMaps"] = f"https://www.google.com/maps/search/{search_query.replace(' ', '+')}"
+            if "addToCalendar" in filled.get("main", {}).get("calendar", {}):
+                filled["main"]["calendar"]["addToCalendar"] = f"https://calendar.google.com/calendar/r/eventedit?text={search_query.replace(' ', '+')}"
+        
+        print(f"✅ Data filling complete")
+        return filled
+        
+    except Exception as e:
+        print(f"❌ MCP tool filling failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return template_data
+
+
+def _fill_with_web_search(filled: Dict, search_client: SearchClient, query: str, domain: str):
+    """Fallback: fill template with web search results."""
+    print(f"🔍 Fallback: Using web search for {domain}")
+    
+    try:
+        # Search web
+        web_results = search_client.search_brave_web(query, count=10)
+        results = web_results.get("web", {}).get("results", [])
+        
+        # Search images
+        image_results = search_client.search_images_realtime(query, limit=6)
+        images = image_results.get("data", [])
+        
+        # Fill any url/link fields with web results
+        _recursive_fill(filled, results, images, 0, 0)
+        
+    except Exception as e:
+        print(f"⚠️ Web search fallback failed: {e}")
+
+
+def _recursive_fill(obj: Any, web_results: List, images: List, web_idx: int, img_idx: int) -> tuple:
+    """Recursively fill JSON fields with web search data."""
+    if isinstance(obj, dict):
+        for key, value in obj.items():
+            key_lower = key.lower()
+            
+            # Fill image fields
+            if any(img_key in key_lower for img_key in ["image", "thumbnail", "photo", "src"]) and key_lower != "icon":
+                if img_idx < len(images):
+                    obj[key] = images[img_idx].get("url", value)
+                    img_idx += 1
+            
+            # Fill URL fields
+            elif any(url_key in key_lower for url_key in ["url", "link", "href"]) and not value:
+                if web_idx < len(web_results):
+                    obj[key] = web_results[web_idx].get("url", value)
+                    web_idx += 1
+            
+            # Fill title/name fields
+            elif any(title_key in key_lower for title_key in ["title", "name"]) and (not value or value in ["", "TXT", "Title", "text", "placeholder"]):
+                if web_idx < len(web_results):
+                    obj[key] = web_results[web_idx].get("title", value)[:50]
+            
+            # Fill text/description fields
+            elif any(text_key in key_lower for text_key in ["text", "description", "summary"]) and (not value or value in ["", "TXT", "text", "placeholder"]):
+                if web_idx < len(web_results):
+                    obj[key] = web_results[web_idx].get("description", value)[:150]
+            
+            # Recurse into nested objects
+            elif isinstance(value, (dict, list)):
+                web_idx, img_idx = _recursive_fill(value, web_results, images, web_idx, img_idx)
+                
+    elif isinstance(obj, list):
+        for item in obj:
+            web_idx, img_idx = _recursive_fill(item, web_results, images, web_idx, img_idx)
+    
+    return web_idx, img_idx
+
+
+# ============================================================================
 # MAIN PUBLIC FUNCTION: JSON FILLING WITH LLM FALLBACK
 # ============================================================================
 
@@ -882,14 +1218,33 @@ def update_json(
 
             # Build system prompt with both context layers
             system_prompt = (
-                "You are a JSON completion assistant.\n\n"
+                "You are a JSON completion assistant that fills template placeholders with REAL, useful data.\n\n"
                 "RULES:\n"
                 "- Do NOT add or remove any keys from the JSON.\n"
                 "- Preserve the structure and types (dict/list/scalar) exactly.\n"
-                "- Only replace empty strings, null values, or placeholder values.\n"
-                "- For arrays, maintain the same element schema.\n"
-                "- If you cannot determine a value, leave it unchanged.\n"
-                "- Return ONLY valid JSON that matches the original template structure.\n"
+                "- Replace empty strings, null values, or placeholder values (TBD, placeholder, n/a, text, title, TXT).\n"
+                "- For arrays, maintain the same element schema but fill with REAL data.\n"
+                "- Use the available search tools to find REAL, current information.\n"
+                "- Return ONLY valid JSON that matches the original template structure.\n\n"
+                "DATA FILLING GUIDELINES:\n"
+                "1. **Images**: For any field that should contain an image (image, imageUrl, photo, thumbnail, src, backgroundImage):\n"
+                "   - Use the search tools to find relevant images\n"
+                "   - Provide direct image URLs (https://... ending in .jpg, .png, .webp)\n"
+                "   - Use Unsplash or Pexels URLs when possible: 'https://images.unsplash.com/photo-...?w=800'\n"
+                "2. **URLs/Links**: For link fields, provide real, clickable URLs:\n"
+                "   - Product links, article links, booking sites, etc.\n"
+                "   - Format as full https:// URLs\n"
+                "3. **Summaries**: Summarize search results into concise, useful text:\n"
+                "   - Product descriptions: 2-3 sentences max\n"
+                "   - Reviews: Brief, authentic-sounding reviews\n"
+                "   - Titles: Clear, descriptive titles\n"
+                "4. **Prices**: Use realistic price formats ($XX.XX)\n"
+                "5. **Ratings**: Use numeric ratings (4.5, 3.8, etc.)\n"
+                "6. **Action Buttons/Links**: Include actionable links:\n"
+                "   - Maps: 'https://www.google.com/maps/search/{location}'\n"
+                "   - Calendar: 'https://calendar.google.com/calendar/r/eventedit?text={title}'\n"
+                "   - Sheets: 'https://docs.google.com/spreadsheets/create'\n"
+                "   - Docs: 'https://docs.google.com/document/create'\n"
             )
 
             # Add page context if provided
@@ -903,7 +1258,12 @@ def update_json(
             # Build user prompt with template
             user_prompt = (
                 f"Template:\n{json.dumps(template_obj, ensure_ascii=False, indent=2)}\n\n"
-                "Fill the template by replacing only empty/placeholder values with appropriate data from the context. "
+                "Fill the template by replacing placeholder values with REAL data:\n"
+                "- Search for relevant products, places, or content based on the context\n"
+                "- Include real image URLs (from Unsplash, Pexels, or search results)\n"
+                "- Make all links clickable with full URLs\n"
+                "- Summarize search results into appropriate text lengths\n"
+                "- Add Google integration links where appropriate (Maps, Calendar, Sheets, Docs)\n\n"
                 "Return ONLY the filled JSON, with no additional text."
             )
 

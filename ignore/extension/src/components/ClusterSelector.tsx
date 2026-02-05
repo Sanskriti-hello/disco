@@ -71,7 +71,7 @@ const DOMAIN_CONFIG: Record<string, { icon: string; color: string; label: string
 };
 
 // Hardcoded API key (loaded from env during build)
-const API_KEY = "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";
+const API_KEY = "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";
 
 interface ClusterSelectorProps {
     isOpen: boolean;

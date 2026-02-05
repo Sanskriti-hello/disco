@@ -1,0 +1,83 @@
+{
+  "header": {
+    "title": "STUDY",
+    "homeIcon": "⌂",
+    "userIcon": "👤",
+    "settingsIcon": "⚙"
+  },
+  "main": {
+    "topic": {
+      "title": "Topic Title",
+      "description": "Topic description",
+      "imageUrl": ""
+    },
+    "summary": {
+      "title": "Summary",
+      "text": "Comprehensive summary of the topic",
+      "source": "",
+      "sourceUrl": ""
+    },
+    "keyPoints": [
+      {
+        "id": 1,
+        "point": "Key point 1",
+        "details": ""
+      },
+      {
+        "id": 2,
+        "point": "Key point 2",
+        "details": ""
+      },
+      {
+        "id": 3,
+        "point": "Key point 3",
+        "details": ""
+      }
+    ],
+    "resources": [
+      {
+        "id": 1,
+        "title": "Resource 1",
+        "url": "",
+        "type": "article"
+      },
+      {
+        "id": 2,
+        "title": "Resource 2",
+        "url": "",
+        "type": "video"
+      },
+      {
+        "id": 3,
+        "title": "Resource 3",
+        "url": "",
+        "type": "paper"
+      }
+    ],
+    "search": {
+      "menuIcon": "☰",
+      "placeholder": "Search topics...",
+      "searchIcon": "🔍"
+    },
+    "labels": {
+      "activeIcon": "✓",
+      "items": [
+        "Label",
+        "Label"
+      ]
+    },
+    "shapes": {
+      "items": [
+        "△",
+        "⚙",
+        "◻"
+      ],
+      "label": "Tools"
+    }
+  },
+  "actions": {
+    "saveToSheets": "https://docs.google.com/spreadsheets/create",
+    "saveToDoc": "https://docs.google.com/document/create",
+    "createFlashcards": ""
+  }
+}

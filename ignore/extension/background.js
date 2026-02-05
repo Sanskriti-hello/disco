@@ -285,7 +285,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     (async () => {
       try {
         // IMPORTANT: Replace with your actual Groq API key
-        const apiKey = "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";
+        const apiKey = "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";
 
         if (!apiKey ||  apiKey.length < 20) {
           sendResponse({ error: 'API key is not configured or is invalid. Please add your key to background.js and rebuild the extension.' });
@@ -328,7 +328,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     (async () => {
       try {
         // IMPORTANT: Replace with your actual Groq API key
-        const apiKey = "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";
+        const apiKey = "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";
 
         if (!apiKey || apiKey.length < 20) {
           sendResponse({ error: 'API key is not configured or is invalid. Please add your key to background.js and rebuild the extension.' });
@@ -398,7 +398,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     (async () => {
       try {
         // Use the backend port where `backend/main.py` runs (uvicorn default 8080)
-        const BACKEND_URL = 'http://127.0.0.1:8080';
+        const BACKEND_URL = 'http://127.0.0.1:8083';
 
         // Get stored domain selection
         const { selectedDomain, google_token } = await chrome.storage.local.get(['selectedDomain', 'google_token']);

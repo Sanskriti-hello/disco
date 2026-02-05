@@ -86,21 +86,70 @@ class SearchClient:
 
     def search_brave_web(self, query: str, count: int = 10) -> Dict[str, Any]:
         """
-        Perform a web search using Brave.
+        Search the web using Brave Search engine. Returns web pages matching the query.
+        
+        Use this tool to find general information, articles, news, tutorials, or any web content.
+        The results include page titles, URLs, and text snippets.
+        
+        Args:
+            query: The search query string (e.g., 'python async tutorial', 'best coffee shops NYC')
+            count: Number of results to return (default: 10, max: 20)
+            
+        Returns:
+            Dict containing 'web' key with list of results, each having:
+            - title: Page title
+            - url: Page URL
+            - description: Text snippet from the page
+            
+        Example:
+            search_brave_web("machine learning basics", count=5)
         """
         params = {"q": query, "count": count}
         return self._make_rapid_get_request(self.config.brave_host, "/web/search", params)
 
     def search_brave_images(self, query: str, count: int = 10) -> Dict[str, Any]:
         """
-        Perform an image search using Brave.
+        Search for images using Brave Search. Returns image URLs and metadata.
+        
+        Use this tool when you need to find images, photos, graphics, or visual content.
+        
+        Args:
+            query: What images to search for (e.g., 'sunset beach', 'modern logo design')
+            count: Number of image results (default: 10)
+            
+        Returns:
+            Dict containing 'images' key with list of image results, each having:
+            - url: Direct image URL
+            - thumbnail: Thumbnail URL
+            - source_url: Page where image was found
+            - title: Image title/alt text
+            
+        Example:
+            search_brave_images("minimalist wallpaper", count=8)
         """
         params = {"q": query, "count": count}
         return self._make_rapid_get_request(self.config.brave_host, "/images/search", params)
 
     def search_brave_videos(self, query: str, count: int = 10) -> Dict[str, Any]:
         """
-        Perform a video search using Brave.
+        Search for videos across the web using Brave Search.
+        
+        Use this tool to find videos from YouTube, Vimeo, and other video platforms.
+        
+        Args:
+            query: What videos to search for (e.g., 'cooking tutorial', 'python crash course')
+            count: Number of video results (default: 10)
+            
+        Returns:
+            Dict containing 'videos' key with list of video results, each having:
+            - url: Video URL
+            - thumbnail: Video thumbnail image
+            - title: Video title
+            - duration: Video length
+            - description: Video description
+            
+        Example:
+            search_brave_videos("react hooks tutorial", count=5)
         """
         params = {"q": query, "count": count}
         return self._make_rapid_get_request(self.config.brave_host, "/videos/search", params)
@@ -115,7 +164,22 @@ class SearchClient:
         safe_search: str = "off"
     ) -> Dict[str, Any]:
         """
-        Perform a high-quality real-time image search.
+        Perform a high-quality real-time image search with advanced filtering options.
+        
+        This provides better quality images than Brave search with more filter options.
+        Use for finding high-resolution images with specific requirements.
+        
+        Args:
+            query: Image search query (e.g., 'abstract background', 'cute puppies')
+            limit: Maximum number of results (default: 10)
+            region: Region code for localized results, e.g., 'us', 'uk', 'de' (default: 'us')
+            safe_search: Content filter - 'on' for safe mode, 'off' for all content (default: 'off')
+            
+        Returns:
+            Dict with high-resolution image results including direct URLs and metadata
+            
+        Example:
+            search_images_realtime("nature landscape", limit=5, region="us", safe_search="on")
         """
         params = {
             "query": query,
@@ -134,8 +198,23 @@ class SearchClient:
 
     def search_tavily(self, query: str, search_depth: str = "smart") -> Dict[str, Any]:
         """
-        Perform a web search using Tavily.
-        Note: This uses the standard Tavily API structure.
+        Perform an AI-optimized web search using Tavily. Best for research and factual queries.
+        
+        Tavily provides AI-summarized answers along with source citations. Use this when you need
+        researched answers rather than just a list of links. Better for complex questions.
+        
+        Args:
+            query: The research query (e.g., 'what are the benefits of meditation?')
+            search_depth: 'smart' for balanced results, 'deep' for comprehensive research (default: 'smart')
+            
+        Returns:
+            Dict containing:
+            - answer: AI-generated summary answer
+            - results: List of source URLs with content excerpts
+            - images: Related images if available
+            
+        Example:
+            search_tavily("how does quantum computing work?", search_depth="deep")
         """
         # Tavily usually uses a POST request to their API
         # but since the user provided an MCP link, we can simulate or use their API directly.

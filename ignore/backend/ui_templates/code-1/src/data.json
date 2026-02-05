@@ -1,0 +1,49 @@
+{
+  "header": {
+    "title": "CODE",
+    "navIcons": "🏠 👤 ⓘ"
+  },
+  "sidebar": {
+    "frameLabel": "Code Explorer",
+    "searchPlaceholder": "Search code...",
+    "content": "Code summary and description"
+  },
+  "mainContent": {
+    "repository": {
+      "name": "Repository Name",
+      "description": "",
+      "url": "",
+      "stars": 0,
+      "language": ""
+    },
+    "topBox": "Code Preview",
+    "bottomBox": "Output",
+    "codeSnippet": "",
+    "documentation": ""
+  },
+  "resources": [
+    {
+      "id": 1,
+      "title": "",
+      "url": "",
+      "type": "docs"
+    },
+    {
+      "id": 2,
+      "title": "",
+      "url": "",
+      "type": "tutorial"
+    },
+    {
+      "id": 3,
+      "title": "",
+      "url": "",
+      "type": "example"
+    }
+  ],
+  "actions": {
+    "openInGithub": "",
+    "saveToDoc": "https://docs.google.com/document/create",
+    "copyCode": ""
+  }
+}

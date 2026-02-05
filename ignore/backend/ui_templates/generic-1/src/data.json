@@ -1,0 +1,82 @@
+{
+  "header": {
+    "title": "Dashboard",
+    "searchPlaceholder": "Search...",
+    "navIcons": "🏠 👤 ⓘ"
+  },
+  "leftColumn": {
+    "summaryTitle": "Summary",
+    "summaryText": "Summary of the content",
+    "imageUrl": ""
+  },
+  "rightColumn": {
+    "linksTitle": "Quick Links"
+  },
+  "boxes": [
+    {
+      "id": 1,
+      "title": "",
+      "description": "",
+      "imageUrl": "",
+      "url": ""
+    },
+    {
+      "id": 2,
+      "title": "",
+      "description": "",
+      "imageUrl": "",
+      "url": ""
+    },
+    {
+      "id": 3,
+      "title": "",
+      "description": "",
+      "imageUrl": "",
+      "url": ""
+    },
+    {
+      "id": 4,
+      "title": "",
+      "description": "",
+      "imageUrl": "",
+      "url": ""
+    }
+  ],
+  "links": [
+    {
+      "id": 1,
+      "text": "Link 1",
+      "url": "",
+      "icon": "🔗"
+    },
+    {
+      "id": 2,
+      "text": "Link 2",
+      "url": "",
+      "icon": "🔗"
+    },
+    {
+      "id": 3,
+      "text": "Link 3",
+      "url": "",
+      "icon": "🔗"
+    },
+    {
+      "id": 4,
+      "text": "Link 4",
+      "url": "",
+      "icon": "🔗"
+    },
+    {
+      "id": 5,
+      "text": "Link 5",
+      "url": "",
+      "icon": "🔗"
+    }
+  ],
+  "actions": {
+    "saveToSheets": "https://docs.google.com/spreadsheets/create",
+    "saveToDoc": "https://docs.google.com/document/create",
+    "openInMaps": "https://www.google.com/maps"
+  }
+}

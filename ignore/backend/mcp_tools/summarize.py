@@ -1,13 +1,51 @@
+"""
+Text Summarization MCP Tool
+============================
+Summarizes long text content using Google Gemini AI.
+
+Use this tool to condense long articles, research papers, documentation,
+or any lengthy text into a concise, readable summary.
+
+Required .env variables:
+    GEMINI_API_KEY=your_gemini_api_key
+"""
+
 import os
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 from dotenv import load_dotenv
 
 load_dotenv()
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+# Configure the Gemini API
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+model = genai.GenerativeModel('gemini-1.5-flash')
 
-def summarize_text(text):
+
+def summarize_text(text: str) -> str:
+    """
+    Summarize long text content into a concise summary using Gemini AI.
+    
+    Use this tool when you have lengthy content that needs to be condensed
+    while preserving the key information. Ideal for:
+    - Academic papers and research articles
+    - Long documentation pages
+    - News articles and blog posts
+    - Technical specifications
+    
+    Args:
+        text: The text content to summarize. Can be any length, but longer
+              texts benefit more from summarization.
+    
+    Returns:
+        str: A concise summary focusing on:
+            - Key concepts and main ideas
+            - Important definitions
+            - Main results, conclusions, or takeaways
+    
+    Example:
+        summary = summarize_text(long_article_text)
+        # Returns: "This article discusses the impact of..."
+    """
     prompt = f"""
     You are an academic assistant.
 
@@ -22,9 +60,7 @@ def summarize_text(text):
     """
 
     print("Calling Gemini...")
-    response = client.models.generate_content(
-                model = "gemini-flash-latest",
-                contents=prompt)
+    response = model.generate_content(prompt)
     print("Gemini response received")
 
     return response.text

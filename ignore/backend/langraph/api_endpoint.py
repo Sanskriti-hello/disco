@@ -9,7 +9,8 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 
 from .graph import build_graph
-from domains import get_domain, domain_exists
+# NOTE: domains/ are kept as ghost files but NOT used in main flow
+# from domains import get_domain, domain_exists  # DEPRECATED
 
 router = APIRouter()
 

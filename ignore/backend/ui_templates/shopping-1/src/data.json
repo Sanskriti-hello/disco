@@ -1,0 +1,94 @@
+{
+  "header": {
+    "brand": "SHOPPING",
+    "navIcons": "🏠 👤 ⓘ"
+  },
+  "main": {
+    "leftQuote": "\"Quote\"",
+    "productHighlight": {
+      "name": "Product name",
+      "text": "Description",
+      "price": "$0.00",
+      "imageUrl": "https://images.unsplash.com/photo-placeholder",
+      "productUrl": "https://example.com",
+      "favIcon": "♡"
+    },
+    "carousel": {
+      "itemButtonText": "View",
+      "items": [
+        {
+          "id": 1,
+          "title": "Product 1",
+          "imageUrl": "",
+          "price": "",
+          "url": ""
+        },
+        {
+          "id": 2,
+          "title": "Product 2",
+          "imageUrl": "",
+          "price": "",
+          "url": ""
+        },
+        {
+          "id": 3,
+          "title": "Product 3",
+          "imageUrl": "",
+          "price": "",
+          "url": ""
+        },
+        {
+          "id": 4,
+          "title": "Product 4",
+          "imageUrl": "",
+          "price": "",
+          "url": ""
+        },
+        {
+          "id": 5,
+          "title": "Product 5",
+          "imageUrl": "",
+          "price": "",
+          "url": ""
+        },
+        {
+          "id": 6,
+          "title": "Product 6",
+          "imageUrl": "",
+          "price": "",
+          "url": ""
+        }
+      ]
+    },
+    "reviews": {
+      "starIcon": "★",
+      "items": [
+        {
+          "id": 1,
+          "title": "Review Title",
+          "stars": 5,
+          "text": "Review text",
+          "reviewerName": ""
+        },
+        {
+          "id": 2,
+          "title": "Review Title",
+          "stars": 4,
+          "text": "Review text",
+          "reviewerName": ""
+        },
+        {
+          "id": 3,
+          "title": "Review Title",
+          "stars": 3,
+          "text": "Review text",
+          "reviewerName": ""
+        }
+      ]
+    },
+    "actions": {
+      "saveToSheets": "https://docs.google.com/spreadsheets/create",
+      "openInMaps": "https://www.google.com/maps"
+    }
+  }
+}

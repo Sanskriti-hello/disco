@@ -1,0 +1,105 @@
+{
+  "header": {
+    "title": "Travel",
+    "homeIcon": "⌂",
+    "userIcon": "👤",
+    "infoIcon": "ℹ"
+  },
+  "main": {
+    "destination": {
+      "name": "Destination Name",
+      "description": "Description of the destination",
+      "imageUrl": "",
+      "mapsUrl": "https://www.google.com/maps/search/"
+    },
+    "calendar": {
+      "prev": "<",
+      "next": ">",
+      "month": "Sep",
+      "year": "2025",
+      "days": [
+        "Su",
+        "Mo",
+        "Tu",
+        "We",
+        "Th",
+        "Fr",
+        "Sa"
+      ],
+      "addToCalendar": "https://calendar.google.com/calendar/r/eventedit"
+    },
+    "textBox": {
+      "text": "Travel summary and recommendations"
+    },
+    "photos": [
+      {
+        "description": "Photo 1",
+        "imageUrl": "",
+        "mapsUrl": ""
+      },
+      {
+        "description": "Photo 2",
+        "imageUrl": "",
+        "mapsUrl": ""
+      },
+      {
+        "description": "Photo 3",
+        "imageUrl": "",
+        "mapsUrl": ""
+      },
+      {
+        "description": "Photo 4",
+        "imageUrl": "",
+        "mapsUrl": ""
+      }
+    ],
+    "hotels": [
+      {
+        "name": "Hotel Name",
+        "rating": 0,
+        "price": "",
+        "imageUrl": "",
+        "bookingUrl": ""
+      }
+    ],
+    "inputBar": {
+      "backIcon": "←",
+      "placeholder": "Search destinations...",
+      "closeIcon": "✕"
+    }
+  },
+  "footer": {
+    "nav": [
+      {
+        "icon": "✈",
+        "color": "orange",
+        "label": "Flights"
+      },
+      {
+        "icon": "🏖",
+        "color": "yellow",
+        "label": "Beaches"
+      },
+      {
+        "icon": "🏨",
+        "color": "blue",
+        "label": "Hotels"
+      },
+      {
+        "icon": "🚗",
+        "color": "green",
+        "label": "Cars"
+      },
+      {
+        "icon": "🍽",
+        "color": "red",
+        "label": "Food"
+      }
+    ]
+  },
+  "actions": {
+    "saveToSheets": "https://docs.google.com/spreadsheets/create",
+    "saveToDoc": "https://docs.google.com/document/create",
+    "openInMaps": "https://www.google.com/maps"
+  }
+}
