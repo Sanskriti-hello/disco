@@ -1,7 +1,7 @@
 """
 Amazon MCP Client
 ==================
-A reusable module for interacting with the Real-Time Amazon Data API via RapidAPI.
+A reusable module for interacting with Real-Time Amazon Data API via RapidAPI.
 
 Functions:
     - search_products: Search for products on Amazon
