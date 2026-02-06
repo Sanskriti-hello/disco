@@ -17,14 +17,14 @@ Usage:
     client = AmazonClient(api_key="your_api_key")
     results = client.search_products("laptop", country="US")
 """
-import requests
+import subprocess
 import os
 import http.client
 import json
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from enum import Enum
-API_KEY = "YOUR_RAPIDAPI_KEY"
+API_KEY = "2e7fb706aamsh8652e50993b6f58p19c376jsndb5f1d77c611"
 
 class SortBy(Enum):
     """Sort options for product reviews."""
@@ -325,48 +325,24 @@ class AmazonClient:
             return self._make_request("/product-review-details", params)
         
 
-        def get_amazon_image_url(self,asin: str) -> str:
-            """
-            Fetch the primary product image URL from Rainforest API for a given Amazon ASIN.
+        def get_amazon_image_url(self,asin):
 
-            Args:
-                asin (str): Amazon product ASIN
+            API_KEY = "2e7fb706aamsh8652e50993b6f58p19c376jsndb5f1d77c611"
 
-            Returns:
-                str: Product image URL
+            cmd = [
+                "curl",
+                "--silent",
+                "--request", "GET",
+                "--url", f"https://rainforest2.p.rapidapi.com/request?type=product&amazon_domain=amazon.com&asin={asin}",
+                "--header", "x-rapidapi-host: rainforest2.p.rapidapi.com",
+                "--header", f"x-rapidapi-key: {API_KEY}"
+            ]
 
-            Raises:
-                Exception: If API request fails or image is not found
-            """
+            result = subprocess.check_output(cmd)
+            # print(result)
+            data = json.loads(result.decode())
 
-            
-
-            url = "https://rainforest2.p.rapidapi.com/request"
-
-            querystring = {
-                "type": "product",
-                "amazon_domain": "amazon.com",
-                "asin": asin
-            }
-
-            headers = {
-                "x-rapidapi-host": "rainforest2.p.rapidapi.com",
-                "x-rapidapi-key": API_KEY
-            }
-
-            response = requests.get(url, headers=headers, params=querystring)
-            data = response.json()
-
-            if not data.get("request_info", {}).get("success"):
-                raise Exception("Rainforest API request failed")
-
-            image_url = data.get("product", {}).get("main_image") or \
-                        data.get("product", {}).get("images", [{}])[0].get("link")
-
-            if not image_url:
-                raise Exception(f"Image URL not found for ASIN: {asin}")
-
-            return image_url
+            return data["product"]["main_image"]["link"]
 
         def get_top_reviews(
             self,
@@ -484,12 +460,14 @@ if __name__ == "__main__":
         
         # Search for products
         print("Searching for 'wireless headphones'...")
-        results = client.search_products("wireless%headphones", country="US")
-        print(json.dumps(results, indent=2)[:500])
+        # results = client.search_products("wireless%headphones", country="US")
+        # print(json.dumps(results, indent=2)[:500])
         
         # Get product reviews
         print("\nGetting reviews for sample ASIN...")
         reviews = client.get_product_reviews("B07ZPKN6YR")
+        image_url=client.get_amazon_image_url("B07ZPKN6YR")
+        print(image_url)
         print(json.dumps(reviews, indent=2)[:500])
     else:
         print("Please set RAPIDAPI_KEY environment variable to test.")
