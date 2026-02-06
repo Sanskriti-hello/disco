@@ -1,5 +1,9 @@
 import React, { useState } from "react";
-import data from "./data.json";
+import fallbackData from "./data.json";
+
+// ✅ Read from runtime-injected data (populated by backend)
+// Falls back to imported data.json for local development
+const data = (window as any).__DASHBOARD_DATA__ || fallbackData;
 import "./styles.css";
 
 export default function App() {

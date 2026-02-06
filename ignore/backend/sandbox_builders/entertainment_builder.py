@@ -572,284 +572,1095 @@ def _extract_json_from_output(text: str) -> str:
 # ============================================================================
 
 
-def fill_data_with_mcp_tools(template_data: Dict, domain: str, context: str) -> Dict:
+def fill_data_with_mcp_tools(template_data: Dict, domain: str, context: str, tabs_structured_data: List[Dict] = None) -> Dict:
     """
-    Directly fill template data by calling MCP tools based on domain.
-    
-    This bypasses the LLM agent and directly queries the appropriate MCP tools
-    to get real data for templates.
-    
-    Args:
-        template_data: The template JSON to fill
-        domain: Domain type (shopping, travel, entertainment, study, code, generic)
-        context: User's context/prompt describing what they want
-        
-    Returns:
-        Filled template data with real content from MCP tools
+    Robust template filler with Direct MCP Mapping + LLM refinement.
+    Never returns original template on error if partial data is available.
     """
-    print(f"🔧 Filling data with MCP tools for domain: {domain}")
-    print(f"📝 Context: {context[:100]}...")
+    print(f"🔧 Filling data for domain: {domain}")
     
-    filled = template_data.copy()
+    import json
+    import os
+    import copy
     
+    # ✅ FIX 1: Use proper deep copy
+    filled = copy.deepcopy(template_data)
+    mcp_data = {}
+    data_was_modified = False  # Track if we made any changes
+    
+    # ✅ FIX 2: Improved query extraction from tabs content
+    query = ""
+    
+    # First try to extract from context
+    if "User Request:" in context:
+        extracted = context.split("User Request:")[-1].split("\n")[0].strip()
+        # Only use if it's not a generic command
+        if extracted and not any(generic in extracted.lower() for generic in 
+            ["create a", "create dashboard", "make a", "build a", "generate"]):
+            query = extracted
+    
+    # If query is generic or missing, extract from tabs
+    if not query:
+        if tabs_structured_data and len(tabs_structured_data) > 0:
+            # Try to extract meaningful search terms from tab content
+            for tab in tabs_structured_data[:3]:  # Check first 3 tabs
+                structured = tab.get('structured', {})
+                
+                # Try headings first (most relevant)
+                headings = structured.get('headings', [])
+                if headings and len(headings) > 0:
+                    # Use first meaningful heading
+                    for heading in headings[:5]:
+                        if (len(heading) > 5 and 
+                            heading.lower() not in ['home', 'menu', 'search', 'navigation', 'header', 'footer'] and
+                            not heading.lower().startswith('sign') and
+                            not heading.lower().startswith('log')):
+                            query = heading
+                            print(f"📌 Using heading as query: {query}")
+                            break
+                    if query:
+                        break
+                
+                # Fallback to extracting product names from links
+                if not query:
+                    links = structured.get('links', [])
+                    for link in links[:10]:
+                        link_text = link.get('text', '').strip()
+                        # Look for product-like link text (not navigation)
+                        if (len(link_text) > 10 and len(link_text) < 100 and
+                            not any(nav in link_text.lower() for nav in 
+                                ['sign in', 'cart', 'account', 'help', 'customer service', 'returns'])):
+                            query = link_text
+                            print(f"📌 Using link text as query: {query}")
+                            break
+                    if query:
+                        break
+                
+                # Last resort: use title if it's not too generic
+                if not query:
+                    title = tab.get('title', '')
+                    if (title and len(title) > 5 and 
+                        not any(generic in title.lower() for generic in 
+                            ['amazon', 'shop', 'store', 'home', 'welcome'])):
+                        query = title
+                        print(f"📌 Using tab title as query: {query}")
+                        break
+    
+    # Final fallback - use domain but log warning
+    if not query:
+        query = domain
+        print(f"⚠️ Could not extract specific query, using domain: {domain}")
+    else:
+        # Clean up the query
+        query = query.strip()[:100]  # Limit length
+            
+    print(f"🔍 Extracted Query: {query}")
+
+    # =========================================================================
+    # PHASE 1: DIRECT DATA GATHERING & FILLING
+    # =========================================================================
     try:
-        # Initialize search client for images and web data
-        search_client = SearchClient()
+        # Import tools locally to avoid top-level failures
+        search_client = None
+        serpapi = None
+        summarize_client = None
         
-        # Extract search query from context
-        search_query = context[:100] if context else domain
+        try:
+            from mcp_tools.search import SearchClient
+            search_client = SearchClient()
+        except ImportError as e:
+            print(f"⚠️ SearchClient Import Warning: {e}")
+            
+        try:
+            from mcp_tools.serpapi_tools import SerpAPIClient
+            serpapi = SerpAPIClient()
+        except ImportError as e:
+            print(f"⚠️ SerpAPI Import Warning: {e}")
         
-        # =================================================================
-        # SHOPPING DOMAIN
-        # =================================================================
+        try:
+            from mcp_tools.summarize import summarize_text
+            # Create a simple wrapper class for consistency
+            class SummarizeClient:
+                def summarize_text(self, text: str) -> str:
+                    return summarize_text(text)
+            summarize_client = SummarizeClient()
+            print("✅ Summarize client initialized")
+        except ImportError as e:
+            print(f"⚠️ Summarize Import Warning: {e}")
+
+        # --- SHOPPING ---
         if domain.lower() == "shopping":
+            products = []
+            
+            # ✅ FIX 3: Proper Amazon API call with better error handling
             try:
                 from mcp_tools.amazon import AmazonClient
                 amazon = AmazonClient()
                 
-                # Search for products
-                products_result = amazon.search_products(search_query, country="US")
-                products = products_result.get("data", {}).get("products", [])[:6]
+                # Call Amazon API with proper parameters
+                res = amazon.search_products(query=query, country="US")
                 
-                print(f"📦 Found {len(products)} products from Amazon")
+                # ✅ FIX 4: Better data extraction from Amazon response
+                # Check for error response first
+                if res and isinstance(res, dict):
+                    if res.get("status") == "error":
+                        error_msg = res.get("message", "Unknown error")
+                        print(f"⚠️ Amazon API Error Response: {error_msg}")
+                        # Check if it's an API key issue
+                        if "api key" in error_msg.lower() or "unauthorized" in error_msg.lower():
+                            print(f"💡 Hint: Set RAPIDAPI_KEY environment variable")
+                    else:
+                        # Handle different successful response structures
+                        if "data" in res:
+                            products = res["data"].get("products", [])
+                        elif "products" in res:
+                            products = res["products"]
+                        else:
+                            print(f"⚠️ Unexpected Amazon response structure: {list(res.keys())}")
                 
-                # Fill product highlight
-                if products and "main" in filled:
-                    first_product = products[0]
+                if products:
+                    print(f"📦 Amazon API: Found {len(products)} products")
+                else:
+                    print(f"📦 Amazon API: Returned 0 products for query '{query}'")
+                    
+            except ImportError:
+                print(f"⚠️ Amazon module not available")
+            except ValueError as e:
+                # This catches the "API key is required" error
+                print(f"⚠️ Amazon API Configuration Error: {e}")
+                print(f"💡 Set RAPIDAPI_KEY environment variable to enable Amazon API")
+            except Exception as e:
+                print(f"⚠️ Amazon API Error: {e}")
+                import traceback
+                traceback.print_exc()
+            
+            # ✅ FIX 5: SerpAPI fallback that actually modifies filled dict
+            if not products and serpapi:
+                try:
+                    print(f"🔄 Trying SerpAPI Amazon Fallback for '{query}'...")
+                    serp_result = serpapi.search_amazon(query)
+                    
+                    if serp_result and isinstance(serp_result, dict):
+                        products = serp_result.get("products", [])
+                        if products:
+                            print(f"✅ SerpAPI Fallback: Found {len(products)} products")
+                            data_was_modified = True
+                        else:
+                            print(f"⚠️ SerpAPI returned 0 products")
+                    else:
+                        print(f"⚠️ SerpAPI returned invalid response")
+                        
+                except Exception as e:
+                    print(f"⚠️ SerpAPI Fallback Error: {e}")
+                    import traceback
+                    traceback.print_exc()
+
+            # Store products in mcp_data
+            if products:
+                mcp_data["products"] = products[:6]
+                # 🔍 DEBUG: Show actual product structure
+                print(f"🔍 DEBUG: First product keys: {list(products[0].keys())}")
+                print(f"🔍 DEBUG: First product sample: {str(products[0])[:200]}")
+            
+            # ✅ FIX 6: DIRECT FILL LOGIC with better error handling
+            if products and "main" in filled:
+                try:
+                    p = products[0]
+                    
+                    # 🔍 DEBUG: Show what fields we're trying to extract
+                    print(f"🔍 Trying to extract from product with keys: {list(p.keys())}")
+                    
+                    # Normalize price with multiple fallbacks
+                    price = p.get("price") or p.get("product_price") or p.get("price_string")
+                    if isinstance(price, dict):
+                        price = price.get("raw", price.get("value", price.get("symbol", "") + str(price.get("amount", "0.00"))))
+                    elif price is None:
+                        price = "$0.00"
+                    else:
+                        price = str(price)
+                    
+                    # Extract fields with multiple fallback keys
+                    product_name = (p.get("title") or p.get("product_title") or 
+                                   p.get("name") or p.get("product_name") or "Product")[:50]
+                    
+                    product_desc = (p.get("description") or p.get("product_description") or 
+                                   p.get("title") or p.get("product_title") or "")[:100]
+                    
+                    product_image = (p.get("product_photo") or p.get("product_main_image_url") or
+                                    p.get("thumbnailImage") or p.get("thumbnail") or 
+                                    p.get("image") or p.get("product_image") or "")
+                    
+                    product_url = (p.get("product_url") or p.get("url") or 
+                                  p.get("link") or p.get("productUrl") or "")
+                    
+                    print(f"📦 Extracted: name='{product_name}', price='{price}', image={bool(product_image)}, url={bool(product_url)}")
+                    
+                    # Fill product highlight
                     if "productHighlight" in filled["main"]:
-                        filled["main"]["productHighlight"]["name"] = first_product.get("title", "Product")[:50]
-                        filled["main"]["productHighlight"]["text"] = first_product.get("title", "")[:100]
-                        filled["main"]["productHighlight"]["price"] = first_product.get("price", {}).get("raw", "$0.00")
-                        filled["main"]["productHighlight"]["imageUrl"] = first_product.get("thumbnailImage", "")
-                        filled["main"]["productHighlight"]["productUrl"] = first_product.get("url", "")
+                        filled["main"]["productHighlight"].update({
+                            "name": product_name,
+                            "text": product_desc,
+                            "price": price,
+                            "imageUrl": product_image,
+                            "productUrl": product_url
+                        })
+                        data_was_modified = True
+                        print(f"✅ Updated productHighlight with: {product_name} @ {price}")
                     
                     # Fill carousel items
                     if "carousel" in filled["main"] and "items" in filled["main"]["carousel"]:
+                        items_filled = 0
                         for i, item in enumerate(filled["main"]["carousel"]["items"]):
                             if i < len(products):
-                                product = products[i]
-                                item["title"] = product.get("title", "")[:30]
-                                item["imageUrl"] = product.get("thumbnailImage", "")
-                                item["price"] = product.get("price", {}).get("raw", "")
-                                item["url"] = product.get("url", "")
-                    
-                    # Fill reviews
-                    if "reviews" in filled["main"] and products:
-                        first_asin = products[0].get("asin")
-                        if first_asin:
-                            try:
-                                reviews_result = amazon.get_product_reviews(first_asin, country="US")
-                                reviews = reviews_result.get("data", {}).get("reviews", [])[:3]
-                                for i, review_item in enumerate(filled["main"]["reviews"].get("items", [])):
-                                    if i < len(reviews):
-                                        review = reviews[i]
-                                        review_item["title"] = review.get("title", "Great product")
-                                        review_item["text"] = review.get("body", "")[:150]
-                                        review_item["stars"] = int(review.get("rating", 4))
-                                        review_item["reviewerName"] = review.get("author", {}).get("name", "Customer")
-                            except Exception as e:
-                                print(f"⚠️ Reviews fetch failed: {e}")
+                                p_item = products[i]
                                 
-            except Exception as e:
-                print(f"⚠️ Amazon tool error: {e}")
-                # Fallback to web search
-                _fill_with_web_search(filled, search_client, search_query, "shopping")
-        
-        # =================================================================
-        # ENTERTAINMENT DOMAIN
-        # =================================================================
-        elif domain.lower() == "entertainment":
-            try:
-                from mcp_tools.movie import MovieClient
-                from mcp_tools.youtube import YouTubeMCP
-                
-                movie_client = MovieClient()
-                youtube = YouTubeMCP()
-                
-                # Search for movies/shows
-                movies_result = movie_client.search_by_title(search_query)
-                movies = movies_result.get("result", [])[:6]
-                
-                print(f"🎬 Found {len(movies)} movies/shows")
-                
-                # Fill featured content
-                if movies and "rightColumn" in filled:
-                    first_movie = movies[0]
-                    if "featured" in filled["rightColumn"]:
-                        filled["rightColumn"]["featured"]["title"] = first_movie.get("title", "")
-                        filled["rightColumn"]["featured"]["description"] = first_movie.get("overview", "")[:200]
-                        filled["rightColumn"]["featured"]["imageUrl"] = first_movie.get("imageSet", {}).get("horizontalPoster", {}).get("w480", "")
-                        filled["rightColumn"]["featured"]["rating"] = first_movie.get("rating", 0)
-                        filled["rightColumn"]["featured"]["year"] = str(first_movie.get("firstAirYear", first_movie.get("releaseYear", "")))
-                        filled["rightColumn"]["featured"]["genre"] = ", ".join(first_movie.get("genres", [])[:3])
-                    filled["rightColumn"]["topBox"] = first_movie.get("title", "Featured")
-                    filled["rightColumn"]["textBox"] = first_movie.get("overview", "")[:150]
-                
-                # Fill items list
-                if "items" in filled:
-                    for i, item in enumerate(filled["items"]):
-                        if i < len(movies):
-                            movie = movies[i]
-                            item["title"] = movie.get("title", "")
-                            item["imageUrl"] = movie.get("imageSet", {}).get("horizontalPoster", {}).get("w480", "")
-                            item["rating"] = movie.get("rating", 0)
-                            # Find streaming URL
-                            streaming = movie.get("streamingInfo", {}).get("us", [])
-                            if streaming:
-                                item["url"] = streaming[0].get("link", "")
-                
-                # Also get YouTube videos
-                try:
-                    videos = youtube.search_videos(search_query, max_results=3)
-                    if videos and "leftColumn" in filled and "items" in filled["leftColumn"]:
-                        for i, item in enumerate(filled["leftColumn"]["items"]):
-                            if i < len(videos):
-                                video = videos[i]
-                                item["title"] = video.get("title", "")[:40]
-                                item["imageUrl"] = video.get("thumbnail", "")
-                                item["url"] = f"https://www.youtube.com/watch?v={video.get('video_id', '')}"
+                                # Extract with fallbacks
+                                item_price = p_item.get("price") or p_item.get("product_price") or p_item.get("price_string")
+                                if isinstance(item_price, dict):
+                                    item_price = item_price.get("raw", item_price.get("value", ""))
+                                elif item_price is None:
+                                    item_price = ""
+                                else:
+                                    item_price = str(item_price)
+                                
+                                item_name = (p_item.get("title") or p_item.get("product_title") or 
+                                           p_item.get("name") or p_item.get("product_name") or "")[:30]
+                                
+                                item_image = (p_item.get("product_photo") or p_item.get("product_main_image_url") or
+                                            p_item.get("thumbnailImage") or p_item.get("thumbnail") or 
+                                            p_item.get("image") or p_item.get("product_image") or "")
+                                
+                                item_url = (p_item.get("product_url") or p_item.get("url") or 
+                                          p_item.get("link") or p_item.get("productUrl") or "")
+                                
+                                item.update({
+                                    "title": item_name,
+                                    "imageUrl": item_image,
+                                    "price": item_price,
+                                    "url": item_url
+                                })
+                                data_was_modified = True
+                                items_filled += 1
+                        
+                        print(f"✅ Filled {items_filled} carousel items")
+                                
+                    print("✅ Direct Shopping Fill Applied")
+                    
                 except Exception as e:
-                    print(f"⚠️ YouTube fetch failed: {e}")
-                    
-            except Exception as e:
-                print(f"⚠️ Entertainment tool error: {e}")
-                _fill_with_web_search(filled, search_client, search_query, "entertainment")
-        
-        # =================================================================
-        # TRAVEL DOMAIN
-        # =================================================================
-        elif domain.lower() == "travel":
+                    print(f"⚠️ Direct Fill Error: {e}")
+                    import traceback
+                    traceback.print_exc()
+            
+            # ✅ FIX 7: Web search fallback for shopping if no products found
+            elif search_client:
+                print(f"🔍 No products found, trying web search fallback...")
+                try:
+                    _fill_with_web_search(filled, search_client, query, domain)
+                    data_was_modified = True
+                except Exception as e:
+                    print(f"⚠️ Web search fallback error: {e}")
+
+        # --- ENTERTAINMENT DOMAIN ---
+        elif domain.lower() == "entertainment":
+            print(f"🎬 Processing Entertainment domain...")
+            
+            # Try to get events and movies
             try:
-                from mcp_tools.Loc_Weath_Dis import LocationWeatherMCP
-                
-                loc_client = LocationWeatherMCP()
-                
-                # Get location info
-                location_query = search_query.replace("travel", "").replace("trip", "").strip()
-                
-                # Search for images of the destination
-                images_result = search_client.search_images_realtime(f"{location_query} travel destination", limit=4)
-                images = images_result.get("data", [])[:4]
-                
-                print(f"🏖️ Found {len(images)} travel images")
-                
-                if "main" in filled:
-                    # Fill destination info
-                    if "destination" in filled["main"]:
-                        filled["main"]["destination"]["name"] = location_query.title()
-                        filled["main"]["destination"]["description"] = f"Explore the beautiful {location_query}"
-                        filled["main"]["destination"]["mapsUrl"] = f"https://www.google.com/maps/search/{location_query.replace(' ', '+')}"
-                        if images:
-                            filled["main"]["destination"]["imageUrl"] = images[0].get("url", "")
+                if serpapi:
+                    # Search for events
+                    events_res = serpapi.search_events(f"events {query}")
+                    events = events_res.get("events", [])[:6] if events_res else []
                     
-                    # Fill photos
-                    if "photos" in filled["main"]:
-                        for i, photo in enumerate(filled["main"]["photos"]):
+                    # Search for images
+                    images_res = serpapi.search_images(f"{query} entertainment", num=6)
+                    images = images_res.get("images", [])[:6] if images_res else []
+                    
+                    # Search for news/articles
+                    news_res = serpapi.search_news(query)
+                    news = news_res.get("articles", [])[:5] if news_res else []
+                    
+                    mcp_data["events"] = events
+                    mcp_data["images"] = images
+                    mcp_data["news"] = news
+                    
+                    # Direct fill for entertainment template
+                    if "leftColumn" in filled and events:
+                        event = events[0]
+                        filled["leftColumn"]["label"] = "More Like This"
+                        if "items" in filled["leftColumn"]:
+                            for i, item in enumerate(filled["leftColumn"]["items"][:len(events)]):
+                                if i < len(events):
+                                    e = events[i]
+                                    item.update({
+                                        "title": e.get("title", "")[:30],
+                                        "imageUrl": e.get("thumbnail", e.get("image", "")),
+                                        "url": e.get("link", e.get("url", ""))
+                                    })
+                                    data_was_modified = True
+                    
+                    # Fill rightColumn featured content
+                    if "rightColumn" in filled:
+                        if "featured" in filled["rightColumn"] and (events or news):
+                            featured_item = events[0] if events else news[0]
+                            filled["rightColumn"]["featured"].update({
+                                "title": featured_item.get("title", "")[:50],
+                                "description": featured_item.get("snippet", featured_item.get("description", ""))[:150],
+                                "imageUrl": featured_item.get("thumbnail", featured_item.get("image", "")),
+                                "rating": 4.5,
+                                "year": "2025",
+                                "genre": "Entertainment"
+                            })
+                            data_was_modified = True
+                        
+                        # Fill textBox
+                        if "textBox" in filled["rightColumn"] and news:
+                            filled["rightColumn"]["textBox"] = news[0].get("snippet", news[0].get("description", ""))[:200]
+                            data_was_modified = True
+                        
+                        # Fill items from rightColumn if present
+                        if "items" in filled["rightColumn"] and news:
+                            for i, item in enumerate(filled["rightColumn"]["items"][:len(news)]):
+                                if i < len(news):
+                                    article = news[i]
+                                    item.update({
+                                        "title": article.get("title", "")[:50],
+                                        "content": article.get("snippet", article.get("description", ""))[:100],
+                                        "url": article.get("link", article.get("url", ""))
+                                    })
+                                    data_was_modified = True
+                    
+                    # Fill main items array (for entertainment-1)
+                    if "items" in filled and images:
+                        for i, item in enumerate(filled["items"][:len(images)]):
                             if i < len(images):
-                                photo["imageUrl"] = images[i].get("url", "")
-                                photo["description"] = images[i].get("title", f"Photo {i+1}")[:50]
-                                photo["mapsUrl"] = f"https://www.google.com/maps/search/{location_query.replace(' ', '+')}"
+                                img = images[i]
+                                event = events[i] if i < len(events) else None
+                                item.update({
+                                    "title": (event.get("title", "") if event else img.get("title", ""))[:40],
+                                    "imageUrl": img.get("thumbnail", img.get("url", "")),
+                                    "url": (event.get("link", "") if event else img.get("source", "")),
+                                    "rating": 4.0 + (i * 0.1)
+                                })
+                                data_was_modified = True
                     
-                    # Fill text box
-                    if "textBox" in filled["main"]:
-                        filled["main"]["textBox"]["text"] = f"Discover amazing destinations in {location_query}. Plan your perfect trip with flights, hotels, and local experiences."
+                    # Fill action bar buttons
+                    if "actionBar" in filled and "buttons" in filled["actionBar"] and events:
+                        if len(filled["actionBar"]["buttons"]) > 0:
+                            filled["actionBar"]["buttons"][0]["url"] = events[0].get("link", events[0].get("url", ""))
+                            data_was_modified = True
                     
-                    # Fill hotels with web search
-                    if "hotels" in filled["main"]:
-                        hotels_search = search_client.search_brave_web(f"{location_query} best hotels booking", count=3)
-                        web_results = hotels_search.get("web", {}).get("results", [])[:3]
-                        for i, hotel in enumerate(filled["main"]["hotels"]):
-                            if i < len(web_results):
-                                result = web_results[i]
-                                hotel["name"] = result.get("title", "")[:40]
-                                hotel["bookingUrl"] = result.get("url", "")
-                                hotel["rating"] = 4.5  # Default rating
-                                
+                    # Fill centerSection for entertainment-2
+                    if "centerSection" in filled:
+                        if "titleBox" in filled["centerSection"] and events:
+                            filled["centerSection"]["titleBox"].update({
+                                "title": events[0].get("title", "")[:50],
+                                "body": events[0].get("snippet", events[0].get("description", ""))[:150]
+                            })
+                            data_was_modified = True
+                    
+                    print(f"✅ Entertainment: {len(events)} events, {len(images)} images, {len(news)} articles")
+                    
             except Exception as e:
-                print(f"⚠️ Travel tool error: {e}")
-                _fill_with_web_search(filled, search_client, search_query, "travel")
+                print(f"⚠️ Entertainment fill error: {e}")
+                import traceback
+                traceback.print_exc()
         
-        # =================================================================
-        # STUDY DOMAIN
-        # =================================================================
-        elif domain.lower() == "study":
+        # --- TRAVEL DOMAIN ---
+        elif domain.lower() == "travel":
+            print(f"✈️ Processing Travel domain...")
+            
             try:
-                from mcp_tools.arxiv import ArxivClient
-                
-                arxiv = ArxivClient()
-                
-                # Search for papers
-                papers_result = arxiv.search_papers(search_query, max_results=5)
-                papers = papers_result if isinstance(papers_result, list) else []
-                
-                print(f"📚 Found {len(papers)} academic papers")
-                
-                if "main" in filled:
-                    # Fill topic info
-                    if "topic" in filled["main"]:
-                        filled["main"]["topic"]["title"] = search_query.title()
-                        filled["main"]["topic"]["description"] = f"Learn about {search_query}"
+                if serpapi:
+                    # Search for destination images
+                    images_res = serpapi.search_images(f"{query} travel destination", num=6)
+                    images = images_res.get("images", [])[:6] if images_res else []
                     
-                    # Fill summary
-                    if "summary" in filled["main"] and papers:
-                        first_paper = papers[0]
-                        filled["main"]["summary"]["title"] = first_paper.get("title", "Summary")[:60]
-                        filled["main"]["summary"]["text"] = first_paper.get("summary", "")[:300]
-                        filled["main"]["summary"]["source"] = "arXiv"
-                        filled["main"]["summary"]["sourceUrl"] = first_paper.get("link", "")
+                    # Search for hotels
+                    hotels_res = serpapi.search_local(f"hotels in {query}")
+                    hotels = hotels_res.get("places", [])[:5] if hotels_res else []
                     
-                    # Fill key points
-                    if "keyPoints" in filled["main"] and papers:
-                        for i, point in enumerate(filled["main"]["keyPoints"]):
-                            if i < len(papers):
-                                paper = papers[i]
-                                point["point"] = paper.get("title", "")[:80]
-                                point["details"] = paper.get("summary", "")[:100]
+                    # Search for attractions
+                    attractions_res = serpapi.search_local(f"attractions in {query}")
+                    attractions = attractions_res.get("places", [])[:4] if attractions_res else []
+                    
+                    mcp_data["travel_images"] = images
+                    mcp_data["hotels"] = hotels
+                    mcp_data["attractions"] = attractions
+                    
+                    # Direct fill for travel template
+                    if "main" in filled:
+                        # Fill destination
+                        if "destination" in filled["main"]:
+                            filled["main"]["destination"].update({
+                                "name": query[:50],
+                                "description": f"Explore {query}" if query else "Travel destination",
+                                "imageUrl": images[0].get("thumbnail", images[0].get("url", "")) if images else "",
+                                "mapsUrl": f"https://www.google.com/maps/search/{query.replace(' ', '+')}"
+                            })
+                            data_was_modified = True
+                        
+                        # Fill photos
+                        if "photos" in filled["main"] and images:
+                            for i, photo in enumerate(filled["main"]["photos"][:len(images)]):
+                                if i < len(images):
+                                    img = images[i]
+                                    photo.update({
+                                        "description": img.get("title", f"Photo {i+1}")[:30],
+                                        "imageUrl": img.get("thumbnail", img.get("url", "")),
+                                        "mapsUrl": f"https://www.google.com/maps/search/{query.replace(' ', '+')}"
+                                    })
+                                    data_was_modified = True
+                        
+                        # Fill hotels
+                        if "hotels" in filled["main"] and hotels:
+                            filled["main"]["hotels"] = []
+                            for i, hotel in enumerate(hotels[:5]):
+                                filled["main"]["hotels"].append({
+                                    "name": hotel.get("title", hotel.get("name", "Hotel"))[:40],
+                                    "rating": hotel.get("rating", 4.0),
+                                    "price": hotel.get("price", "$100/night"),
+                                    "imageUrl": hotel.get("thumbnail", ""),
+                                    "bookingUrl": hotel.get("link", hotel.get("url", ""))
+                                })
+                                data_was_modified = True
+                        
+                        # Fill text box with summary
+                        if "textBox" in filled["main"]:
+                            filled["main"]["textBox"]["text"] = f"Discover {query} - a wonderful destination with amazing hotels, attractions, and experiences."
+                            data_was_modified = True
+                    
+                    print(f"✅ Travel: {len(images)} images, {len(hotels)} hotels, {len(attractions)} attractions")
+                    
+            except Exception as e:
+                print(f"⚠️ Travel fill error: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        # --- CODE DOMAIN ---
+        elif domain.lower() == "code":
+            print(f"💻 Processing Code domain...")
+            
+            try:
+                # Try to extract repository info from tabs
+                repo_info = None
+                if tabs_structured_data:
+                    for tab in tabs_structured_data[:3]:
+                        url = tab.get("url", "")
+                        if "github.com" in url:
+                            # Extract repo name from GitHub URL
+                            parts = url.split("github.com/")
+                            if len(parts) > 1:
+                                repo_path = parts[1].split("/")[:2]
+                                if len(repo_path) == 2:
+                                    repo_info = {
+                                        "name": "/".join(repo_path),
+                                        "url": f"https://github.com/{'/'.join(repo_path)}",
+                                        "description": tab.get("title", "")
+                                    }
+                                    break
+                
+                # Use web search for code resources
+                if search_client:
+                    search_res = search_client.web_search(f"{query} documentation tutorial")
+                    web_results = search_res.get("organic_results", [])[:10] if search_res else []
+                    mcp_data["web_results"] = web_results
+                    
+                    # Direct fill for code template
+                    if "mainContent" in filled:
+                        # Fill repository info
+                        if "repository" in filled["mainContent"]:
+                            if repo_info:
+                                filled["mainContent"]["repository"].update({
+                                    "name": repo_info["name"],
+                                    "description": repo_info.get("description", "")[:100],
+                                    "url": repo_info["url"],
+                                    "stars": 0,
+                                    "language": "JavaScript"
+                                })
+                            else:
+                                filled["mainContent"]["repository"].update({
+                                    "name": query[:50],
+                                    "description": f"Code repository for {query}"[:100],
+                                    "url": web_results[0].get("link", "") if web_results else "",
+                                    "stars": 0,
+                                    "language": "JavaScript"
+                                })
+                            data_was_modified = True
+                        
+                        # Fill code snippet from tab content
+                        if "codeSnippet" in filled["mainContent"] and tabs_structured_data:
+                            # Try to extract code from tabs
+                            for tab in tabs_structured_data[:3]:
+                                structured = tab.get("structured", {})
+                                paragraphs = structured.get("paragraphs", [])
+                                for para in paragraphs:
+                                    if any(keyword in para.lower() for keyword in ["function", "const", "class", "import", "def", "public"]):
+                                        filled["mainContent"]["codeSnippet"] = para[:500]
+                                        data_was_modified = True
+                                        break
+                                if filled["mainContent"]["codeSnippet"]:
+                                    break
+                        
+                        # Fill documentation
+                        if "documentation" in filled["mainContent"] and web_results:
+                            filled["mainContent"]["documentation"] = web_results[0].get("snippet", "")[:200]
+                            data_was_modified = True
                     
                     # Fill resources
-                    if "resources" in filled["main"]:
-                        for i, resource in enumerate(filled["main"]["resources"]):
-                            if i < len(papers):
-                                paper = papers[i]
-                                resource["title"] = paper.get("title", "")[:50]
-                                resource["url"] = paper.get("link", "")
-                                resource["type"] = "paper"
-                                
+                    if "resources" in filled and web_results:
+                        for i, resource in enumerate(filled["resources"][:len(web_results)]):
+                            if i < len(web_results):
+                                result = web_results[i]
+                                resource.update({
+                                    "title": result.get("title", "")[:50],
+                                    "url": result.get("link", ""),
+                                    "type": "docs" if i == 0 else ("tutorial" if i == 1 else "example")
+                                })
+                                data_was_modified = True
+                    
+                    # Fill actions
+                    if "actions" in filled:
+                        if repo_info:
+                            filled["actions"]["openInGithub"] = repo_info["url"]
+                        elif web_results:
+                            filled["actions"]["openInGithub"] = web_results[0].get("link", "")
+                        data_was_modified = True
+                    
+                    print(f"✅ Code: {len(web_results)} resources found")
+                    
             except Exception as e:
-                print(f"⚠️ Study tool error: {e}")
-                _fill_with_web_search(filled, search_client, search_query, "study")
+                print(f"⚠️ Code fill error: {e}")
+                import traceback
+                traceback.print_exc()
         
-        # =================================================================
-        # GENERIC / OTHER DOMAINS - Use web search
-        # =================================================================
+        # --- STUDY DOMAIN ---
+        elif domain.lower() == "study":
+            print(f"📚 Processing Study domain...")
+            
+            try:
+                if serpapi:
+                    # Search for scholarly papers
+                    papers_res = serpapi.search_scholar(query)
+                    papers = papers_res.get("papers", [])[:5] if papers_res else []
+                    
+                    # Search for images
+                    images_res = serpapi.search_images(f"{query} diagram infographic", num=3)
+                    images = images_res.get("images", [])[:3] if images_res else []
+                    
+                    mcp_data["papers"] = papers
+                    mcp_data["images"] = images
+                    
+                    # Direct fill for study template
+                    if "main" in filled:
+                        # Fill topic
+                        if "topic" in filled["main"]:
+                            filled["main"]["topic"].update({
+                                "title": query[:100],  # Increased from 50
+                                "description": f"Study guide for {query}"[:200],  # Increased from 100
+                                "imageUrl": images[0].get("thumbnail", images[0].get("url", "")) if images else ""
+                            })
+                            data_was_modified = True
+                        
+                        # Fill summary - Use summarize tool if available and tabs have content
+                        if "summary" in filled["main"]:
+                            summary_text = ""
+                            summary_source = ""
+                            summary_url = ""
+                            
+                            # Try to generate summary from tab content first
+                            if tabs_structured_data and summarize_client:
+                                try:
+                                    print("🧠 Generating detailed summary from tab content...")
+                                    # Collect content from tabs
+                                    tab_content = []
+                                    for tab in tabs_structured_data[:3]:  # Use first 3 tabs
+                                        structured = tab.get("structured", {})
+                                        paragraphs = structured.get("paragraphs", [])
+                                        
+                                        # If structured data has paragraphs, use them
+                                        if paragraphs:
+                                            tab_content.extend(paragraphs[:5])  # Get first 5 paragraphs from each tab
+                                        # Fallback: use plain content field if structured is empty
+                                        elif tab.get("content"):
+                                            plain_content = tab.get("content", "")[:2000]  # Limit to 2000 chars
+                                            if plain_content.strip():
+                                                tab_content.append(plain_content)
+                                                print(f"📄 Using plain content from tab (structured data empty)")
+                                    
+                                    if tab_content:
+                                        combined_content = " ".join(tab_content)
+                                        print(f"📝 Collected {len(combined_content)} chars of content from {len(tab_content)} sources")
+                                        
+                                        # Use summarize MCP tool
+                                        summary_text = summarize_client.summarize_text(combined_content)
+                                        summary_source = tabs_structured_data[0].get("title", "")[:100]
+                                        summary_url = tabs_structured_data[0].get("url", "")
+                                        print(f"✅ Generated summary from tabs ({len(summary_text)} chars)")
+                                    else:
+                                        print("⚠️ No content found in tabs (both structured and plain content empty)")
+                                except Exception as e:
+                                    print(f"⚠️ Summary generation from tabs failed: {e}")
+                                    import traceback
+                                    traceback.print_exc()
+                            
+                            # Fallback to paper abstract if no tab summary
+                            if not summary_text and papers:
+                                paper = papers[0]
+                                summary_text = paper.get("snippet", paper.get("abstract", ""))[:500]  # Increased from 200
+                                summary_source = paper.get("publication", "")[:100]  # Increased from 50
+                                summary_url = paper.get("link", "")
+                            
+                            if summary_text:
+                                filled["main"]["summary"].update({
+                                    "title": "Summary",
+                                    "text": summary_text,
+                                    "source": summary_source,
+                                    "sourceUrl": summary_url
+                                })
+                                data_was_modified = True
+                        
+                        # Fill key points from papers AND tabs
+                        if "keyPoints" in filled["main"]:
+                            key_points_filled = 0
+                            
+                            # First, fill from papers
+                            for i, point in enumerate(filled["main"]["keyPoints"][:len(papers)]):
+                                if i < len(papers):
+                                    paper = papers[i]
+                                    point.update({
+                                        "point": paper.get("title", "")[:100],  # Increased from 50
+                                        "details": paper.get("snippet", "")[:300]  # Increased from 100
+                                    })
+                                    data_was_modified = True
+                                    key_points_filled += 1
+                            
+                            # Then, fill remaining from tab headings/content
+                            if tabs_structured_data and key_points_filled < len(filled["main"]["keyPoints"]):
+                                for tab in tabs_structured_data[:2]:
+                                    structured = tab.get("structured", {})
+                                    headings = structured.get("headings", [])
+                                    paragraphs = structured.get("paragraphs", [])
+                                    
+                                    for j, heading in enumerate(headings):
+                                        if key_points_filled >= len(filled["main"]["keyPoints"]):
+                                            break
+                                        
+                                        # Get corresponding paragraph if available
+                                        details = paragraphs[j] if j < len(paragraphs) else ""
+                                        
+                                        filled["main"]["keyPoints"][key_points_filled].update({
+                                            "point": heading[:100],
+                                            "details": details[:300]
+                                        })
+                                        data_was_modified = True
+                                        key_points_filled += 1
+                                    
+                                    if key_points_filled >= len(filled["main"]["keyPoints"]):
+                                        break
+                            
+                            print(f"✅ Filled {key_points_filled} key points")
+                        
+                        # Fill resources from papers and tabs
+                        if "resources" in filled["main"]:
+                            filled["main"]["resources"] = []
+                            resource_id = 1
+                            
+                            # Add papers as resources
+                            for i, paper in enumerate(papers[:3]):
+                                filled["main"]["resources"].append({
+                                    "id": resource_id,
+                                    "title": paper.get("title", "")[:100],  # Increased from 50
+                                    "url": paper.get("link", ""),
+                                    "type": "paper"
+                                })
+                                resource_id += 1
+                                data_was_modified = True
+                            
+                            # Add tabs as resources
+                            if tabs_structured_data:
+                                for tab in tabs_structured_data[:3]:
+                                    if resource_id > 6:  # Limit to 6 total resources
+                                        break
+                                    filled["main"]["resources"].append({
+                                        "id": resource_id,
+                                        "title": tab.get("title", "")[:100],
+                                        "url": tab.get("url", ""),
+                                        "type": "article"
+                                    })
+                                    resource_id += 1
+                                    data_was_modified = True
+                    
+                    print(f"✅ Study: {len(papers)} papers, {len(images)} images, {len(filled.get('main', {}).get('resources', []))} resources")
+                    
+            except Exception as e:
+                print(f"⚠️ Study fill error: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        # --- GENERIC DOMAIN ---
+        elif domain.lower() == "generic":
+            print(f"🔧 Processing Generic domain...")
+            
+            try:
+                if search_client:
+                    # Use web search for generic content
+                    search_res = search_client.web_search(query)
+                    web_results = search_res.get("organic_results", [])[:10] if search_res else []
+                    mcp_data["web_results"] = web_results
+                    
+                    # Search for images
+                    if serpapi:
+                        images_res = serpapi.search_images(query, num=4)
+                        images = images_res.get("images", [])[:4] if images_res else []
+                        mcp_data["images"] = images
+                    else:
+                        images = []
+                    
+                    # Direct fill for generic-1 template
+                    if "leftColumn" in filled:
+                        filled["leftColumn"]["summaryTitle"] = "Summary"
+                        if web_results:
+                            filled["leftColumn"]["summaryText"] = web_results[0].get("snippet", "")[:200]
+                            filled["leftColumn"]["imageUrl"] = images[0].get("thumbnail", images[0].get("url", "")) if images else ""
+                            data_was_modified = True
+                    
+                    # Direct fill for generic-2 template (main.summary)
+                    if "main" in filled:
+                        if "summary" in filled["main"] and web_results:
+                            filled["main"]["summary"].update({
+                                "title": "SUMMARY",
+                                "text": web_results[0].get("snippet", "")[:300]
+                            })
+                            data_was_modified = True
+                        
+                        # Fill main.boxes for generic-2
+                        if "boxes" in filled["main"] and web_results:
+                            for i, box in enumerate(filled["main"]["boxes"][:len(web_results)]):
+                                if i < len(web_results):
+                                    result = web_results[i]
+                                    box.update({
+                                        "title": result.get("title", "")[:50],
+                                        "description": result.get("snippet", "")[:100],
+                                        "imageUrl": images[i].get("thumbnail", images[i].get("url", "")) if i < len(images) else "",
+                                        "url": result.get("link", "")
+                                    })
+                                    data_was_modified = True
+                    
+                    # Fill boxes for generic-1
+                    if "boxes" in filled and web_results:
+                        for i, box in enumerate(filled["boxes"][:len(web_results)]):
+                            if i < len(web_results):
+                                result = web_results[i]
+                                box.update({
+                                    "title": result.get("title", "")[:50],
+                                    "description": result.get("snippet", "")[:100],
+                                    "imageUrl": images[i].get("thumbnail", images[i].get("url", "")) if i < len(images) else "",
+                                    "url": result.get("link", "")
+                                })
+                                data_was_modified = True
+                    
+                    # Fill links for generic-1
+                    if "links" in filled and web_results:
+                        for i, link in enumerate(filled["links"][:len(web_results)]):
+                            if i < len(web_results):
+                                result = web_results[i]
+                                link.update({
+                                    "text": result.get("title", "")[:40],
+                                    "url": result.get("link", ""),
+                                    "icon": "🔗"
+                                })
+                                data_was_modified = True
+                    
+                    # Fill sidebar.links for generic-2
+                    if "sidebar" in filled and "links" in filled["sidebar"] and web_results:
+                        for i, link in enumerate(filled["sidebar"]["links"][:len(web_results)]):
+                            if i < len(web_results):
+                                result = web_results[i]
+                                link.update({
+                                    "text": result.get("title", "")[:40],
+                                    "url": result.get("link", "")
+                                })
+                                data_was_modified = True
+                    
+                    print(f"✅ Generic: {len(web_results)} results, {len(images)} images")
+                    
+            except Exception as e:
+                print(f"⚠️ Generic fill error: {e}")
+                import traceback
+                traceback.print_exc()
+        
+        # --- FALLBACK FOR ANY DOMAIN ---
         else:
-            _fill_with_web_search(filled, search_client, search_query, domain)
-        
-        # =================================================================
-        # ALWAYS: Fill Google integration URLs
-        # =================================================================
-        if "actions" in filled:
-            if "openInMaps" in filled["actions"]:
-                filled["actions"]["openInMaps"] = f"https://www.google.com/maps/search/{search_query.replace(' ', '+')}"
-            if "addToCalendar" in filled.get("main", {}).get("calendar", {}):
-                filled["main"]["calendar"]["addToCalendar"] = f"https://calendar.google.com/calendar/r/eventedit?text={search_query.replace(' ', '+')}"
-        
-        print(f"✅ Data filling complete")
-        return filled
-        
+            print(f"⚠️ Unknown domain '{domain}', using generic fallback...")
+            if serpapi:
+                try:
+                    mcp_data["web_results"] = serpapi.search_web(query).get("organic_results", [])[:10]
+                    mcp_data["images"] = serpapi.search_images(query).get("images", [])[:6]
+                    data_was_modified = True
+                except Exception as e:
+                    print(f"⚠️ SerpAPI Fallback Error: {e}")
+                    import traceback
+                    traceback.print_exc()
+
     except Exception as e:
-        print(f"❌ MCP tool filling failed: {e}")
+        print(f"⚠️ Phase 1 Error: {e}")
         import traceback
         traceback.print_exc()
-        return template_data
+        # ✅ FIX 8: Don't return template on error, continue with partial data
 
+    # =========================================================================
+    # PHASE 2: LLM REFINEMENT
+    # =========================================================================
+    llm_success = False
+    try:
+        from langchain_groq import ChatGroq
+        
+        groq_key = os.getenv("GROQ_API_KEY")
+        # ✅ Always try LLM refinement, even with minimal MCP data
+        if groq_key:
+            llm = ChatGroq(api_key=groq_key, model="llama-3.3-70b-versatile", temperature=0.3)
+            
+            # Build domain-specific prompts
+            if domain.lower() == "study":
+                system_prompt = f"""You are filling a study dashboard template with educational content.
+                
+Task: Fill the JSON template with meaningful study content based on the query "{query}".
+
+Requirements:
+1. Generate a comprehensive summary (200-500 chars) about the topic
+2. Create 3 key points with details (each point: 50-100 chars, details: 100-300 chars)
+3. Add 3-6 relevant resources with titles and URLs (use the provided tab URLs if available)
+4. If tab content is available, use it to generate accurate summaries
+5. If no specific content is available, generate educational content based on the topic title
+
+Return ONLY valid JSON matching the template structure."""
+            else:
+                system_prompt = f"Fill JSON for {domain}. Use real data from MCP tools and tabs. Return ONLY valid JSON."
+            
+            # Build user prompt with tab content
+            tab_context = ""
+            if tabs_structured_data:
+                tab_summaries = []
+                for i, tab in enumerate(tabs_structured_data[:3]):
+                    title = tab.get("title", "")
+                    url = tab.get("url", "")
+                    content = tab.get("content", "")[:500]  # First 500 chars
+                    tab_summaries.append(f"Tab {i+1}: {title}\nURL: {url}\nContent: {content[:200]}...")
+                tab_context = "\n\n".join(tab_summaries)
+            
+            user_prompt = f"""Template to fill:
+{json.dumps(filled, indent=2)}
+
+MCP Data Available:
+{json.dumps(mcp_data, indent=2) if mcp_data else "No MCP data available"}
+
+Tab Context:
+{tab_context if tab_context else "No tab content available"}
+
+Query: {query}
+
+Fill the template with meaningful content. Ensure all placeholder text is replaced with real content."""
+            
+            print("🤖 Calling LLM to refine data...")
+            response_obj = llm.invoke(f"{system_prompt}\n{user_prompt}")
+            response = response_obj.content
+            
+            # Clean response
+            if "```" in response:
+                response = response.split("```")[1]
+                if response.startswith("json"):
+                    response = response[4:]
+            
+            llm_filled = json.loads(response.strip())
+            
+            # Merge LLM results SAFELY into our already-filled object
+            if isinstance(llm_filled, dict) and _validate_filled_data(llm_filled):
+                filled = llm_filled
+                llm_success = True
+                data_was_modified = True
+                print("✅ LLM Refinement Successful")
+            else:
+                print("⚠️ LLM output validation failed, keeping direct fill")
+            
+    except ImportError:
+        print(f"⚠️ langchain_groq not available, skipping LLM refinement")
+    except Exception as e:
+        print(f"⚠️ LLM Skipped/Failed: {e}")
+        # ✅ FIX 9: Continue with 'filled' which has Direct Fill data
+
+    # =========================================================================
+    # PHASE 3: VALIDATION & RETURN
+    # =========================================================================
+    
+    # ✅ FIX 10: Validate filled data before returning
+    if _validate_filled_data(filled):
+        print(f"✅ Data validation passed (modified: {data_was_modified})")
+        return filled
+    else:
+        print(f"⚠️ Data still contains placeholders, but returning best effort")
+        # Return filled data even with placeholders - it's better than nothing
+        return filled
+
+
+
+def _summarize_tabs_content(tabs: List[Dict]) -> str:
+    """Summarize structured content from tabs into a context string."""
+    if not tabs:
+        return "No tab content available"
+    
+    parts = []
+    for tab in tabs[:5]:  # Limit to 5 tabs
+        tab_parts = [f"Page: {tab.get('title', 'Untitled')} ({tab.get('url', '')})"]
+        
+        structured = tab.get("structured", {})
+        
+        # Add headings
+        headings = structured.get("headings", [])
+        if headings:
+            tab_parts.append(f"Headings: {', '.join(headings[:3])}")
+        
+        # Add paragraphs (summarized)
+        paragraphs = structured.get("paragraphs", [])
+        if paragraphs:
+            tab_parts.append(f"Content: {' '.join(paragraphs[:2])[:300]}")
+        
+        # Add links with URLs
+        links = structured.get("links", [])
+        if links:
+            link_items = [f"{l.get('text', '')} ({l.get('url', '')})" for l in links[:5] if l.get("text")]
+            if link_items:
+                tab_parts.append(f"Links: {', '.join(link_items)}")
+        
+        # Add images with URLs
+        images = structured.get("images", [])
+        if images:
+            img_items = [img.get("src", "") for img in images[:3] if img.get("src")]
+            if img_items:
+                tab_parts.append(f"Image URLs: {', '.join(img_items)}")
+        
+        # Add plain content if no structured data
+        if not structured and tab.get("content"):
+            tab_parts.append(f"Content: {tab.get('content', '')[:300]}")
+        
+        parts.append("\n".join(tab_parts))
+    
+    return "\n\n---\n\n".join(parts)
+
+
+def _validate_structure(template: Dict, candidate: Dict) -> bool:
+    """Check if candidate has the same top-level keys as template."""
+    if not isinstance(template, dict) or not isinstance(candidate, dict):
+        return False
+    template_keys = set(template.keys())
+    candidate_keys = set(candidate.keys())
+    # Allow if candidate has at least 80% of template keys
+    overlap = len(template_keys.intersection(candidate_keys))
+    return overlap >= len(template_keys) * 0.8
+
+
+def _safe_merge_llm_output(template: Dict, llm_output: Dict) -> Dict:
+    """Safely merge LLM output into template, preserving template structure."""
+    result = {}
+    for key, template_value in template.items():
+        if key in llm_output:
+            llm_value = llm_output[key]
+            if isinstance(template_value, dict) and isinstance(llm_value, dict):
+                result[key] = _safe_merge_llm_output(template_value, llm_value)
+            elif isinstance(template_value, list) and isinstance(llm_value, list):
+                result[key] = llm_value if llm_value else template_value
+            elif isinstance(template_value, str) and isinstance(llm_value, str):
+                # Replace only if template was placeholder
+                if template_value.strip().lower() in ("", "tbd", "placeholder", "text", "title", "txt"):
+                    result[key] = llm_value
+                else:
+                    result[key] = llm_value if llm_value else template_value
+            else:
+                result[key] = llm_value if llm_value is not None else template_value
+        else:
+            result[key] = template_value
+    return result
+
+
+def _validate_filled_data(data: Dict) -> bool:
+    """
+    Validate that filled data doesn't contain too many placeholder values.
+    Returns True if data appears to be properly filled.
+    """
+    if not isinstance(data, dict):
+        return False
+    
+    placeholder_values = [
+        "product name", "$0.00", "placeholder", "tbd", "text", "title",
+        "product", "item", "untitled", "n/a", "none", ""
+    ]
+    
+    def count_placeholders(obj, total_count=0, placeholder_count=0):
+        """Recursively count placeholder values in nested structure."""
+        if isinstance(obj, dict):
+            for value in obj.values():
+                t, p = count_placeholders(value, total_count, placeholder_count)
+                total_count += t
+                placeholder_count += p
+        elif isinstance(obj, list):
+            for item in obj:
+                t, p = count_placeholders(item, total_count, placeholder_count)
+                total_count += t
+                placeholder_count += p
+        elif isinstance(obj, str):
+            total_count += 1
+            if obj.strip().lower() in placeholder_values:
+                placeholder_count += 1
+        return total_count, placeholder_count
+    
+    total, placeholders = count_placeholders(data)
+    
+    # If more than 50% are placeholders, validation fails
+    if total > 0:
+        ratio = placeholders / total
+        return ratio < 0.5
+    
+    return True
+
+
+def _direct_fill_fallback(template_data: Dict, mcp_data: Dict, tabs_data: List[Dict]) -> Dict:
+    """Fallback: Directly fill template without LLM"""
+    filled = template_data.copy()
+    
+    # Shopping domain
+    products = mcp_data.get("products", [])
+    if products and "main" in filled:
+        if "productHighlight" in filled["main"]:
+            p = products[0]
+            filled["main"]["productHighlight"].update({
+                "name": p.get("title", "")[:50],
+                "text": p.get("title", "")[:100],
+                "price": p.get("price", {}).get("raw", "$0.00") if isinstance(p.get("price"), dict) else p.get("price", "$0.00"),
+                "imageUrl": p.get("thumbnailImage", p.get("thumbnail", "")),
+                "productUrl": p.get("url", p.get("link", ""))
+            })
+        if "carousel" in filled["main"] and "items" in filled["main"]["carousel"]:
+            for i, item in enumerate(filled["main"]["carousel"]["items"]):
+                if i < len(products):
+                    p = products[i]
+                    item.update({
+                        "title": p.get("title", "")[:30],
+                        "imageUrl": p.get("thumbnailImage", p.get("thumbnail", "")),
+                        "price": p.get("price", {}).get("raw", "") if isinstance(p.get("price"), dict) else p.get("price", ""),
+                        "url": p.get("url", p.get("link", ""))
+                    })
+    
+    print("✅ Direct fill complete")
+    return filled
 
 def _fill_with_web_search(filled: Dict, search_client: SearchClient, query: str, domain: str):
-    """Fallback: fill template with web search results."""
+    """
+    Fallback: fill template with web search results.
+    ✅ FIX: Actually fills shopping-specific fields with product data.
+    """
     print(f"🔍 Fallback: Using web search for {domain}")
     
     try:
-        # Search web
+        # Search web for products
         web_results = search_client.search_brave_web(query, count=10)
         results = web_results.get("web", {}).get("results", [])
         
@@ -857,12 +1668,42 @@ def _fill_with_web_search(filled: Dict, search_client: SearchClient, query: str,
         image_results = search_client.search_images_realtime(query, limit=6)
         images = image_results.get("data", [])
         
-        # Fill any url/link fields with web results
-        _recursive_fill(filled, results, images, 0, 0)
+        # ✅ For shopping domain, fill product-specific fields
+        if domain.lower() == "shopping" and "main" in filled:
+            # Fill product highlight from first result
+            if results and len(results) > 0 and "productHighlight" in filled["main"]:
+                first_result = results[0]
+                filled["main"]["productHighlight"].update({
+                    "name": first_result.get("title", "Product")[:50],
+                    "text": first_result.get("description", "")[:100],
+                    "price": "$0.00",  # Can't get price from web search
+                    "imageUrl": images[0].get("url", "") if images else "",
+                    "productUrl": first_result.get("url", "")
+                })
+                print("✅ Filled productHighlight from web search")
+            
+            # Fill carousel items
+            if "carousel" in filled["main"] and "items" in filled["main"]["carousel"]:
+                for i, item in enumerate(filled["main"]["carousel"]["items"]):
+                    if i < len(results):
+                        result = results[i]
+                        img_url = images[i].get("url", "") if i < len(images) else ""
+                        
+                        item.update({
+                            "title": result.get("title", "")[:30],
+                            "imageUrl": img_url,
+                            "price": "$0.00",
+                            "url": result.get("url", "")
+                        })
+                print(f"✅ Filled {min(len(results), len(filled['main']['carousel']['items']))} carousel items")
+        else:
+            # Generic fill for other domains
+            _recursive_fill(filled, results, images, 0, 0)
         
     except Exception as e:
         print(f"⚠️ Web search fallback failed: {e}")
-
+        import traceback
+        traceback.print_exc()
 
 def _recursive_fill(obj: Any, web_results: List, images: List, web_idx: int, img_idx: int) -> tuple:
     """Recursively fill JSON fields with web search data."""
@@ -945,7 +1786,7 @@ def update_json(
     try:
         from langchain.tools import Tool
         from langchain.agents import initialize_agent, AgentType
-        from langchain.chat_models import ChatGroq
+        from langchain_groq import ChatGroq
     except Exception:
         Tool = None
         initialize_agent = None

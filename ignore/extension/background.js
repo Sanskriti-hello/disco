@@ -28,11 +28,13 @@ async function extractTabsContent() {
       }).catch(() => null);
 
       if (injectionResults && injectionResults[0] && injectionResults[0].result) {
+        const result = injectionResults[0].result;
         return {
           id: tab.id,
           title: tab.title || "Untitled",
           url: tab.url,
-          content: (injectionResults[0].result.content || "").substring(0, 2000)
+          content: (result.content || "").substring(0, 2000),
+          structured: result.structured || {}
         };
       }
 
@@ -48,7 +50,8 @@ async function extractTabsContent() {
         id: tab.id,
         title: tab.title || "Untitled",
         url: tab.url,
-        content: content
+        content: content,
+        structured: {}
       };
 
     } catch (err) {
@@ -58,7 +61,8 @@ async function extractTabsContent() {
         id: tab.id,
         title: tab.title || "Untitled",
         url: tab.url,
-        content: ""
+        content: "",
+        structured: {}
       };
     }
   }));
@@ -287,7 +291,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // IMPORTANT: Replace with your actual Groq API key
         const apiKey = "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";
 
-        if (!apiKey ||  apiKey.length < 20) {
+        if (!apiKey || apiKey.length < 20) {
           sendResponse({ error: 'API key is not configured or is invalid. Please add your key to background.js and rebuild the extension.' });
           return;
         }
@@ -411,6 +415,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.log('🚀 Calling backend API...');
         console.log('Domain:', selectedDomain.domain);
         console.log('Tabs:', selectedDomain.tabs?.length || 0);
+        console.log("🧪 Tab data being sent:", selectedDomain.tabs);
 
         // Prepare request payload
         const payload = {
@@ -419,7 +424,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             id: tab.id,
             title: tab.title || "Untitled",
             url: tab.url || "",
-            content: tab.content || ""
+            content: tab.content || "",
+            structured: tab.structured || {}
           })),
           user_prompt: selectedDomain.userPrompt || request.userPrompt || "",
           summary: selectedDomain.summary || "",

@@ -1,32 +1,51 @@
-(function() {
-  // 1. Clone the body so we don't mess up the actual page
+(function () {
   const clone = document.body.cloneNode(true);
 
-  // 2. Remove "Junk" Elements (Ads, Menus, Footers)
+  // Remove junk elements
   const junkSelectors = [
-    'script', 'style', 'noscript', 'iframe', 
-    'header', 'footer', 'nav', 
-    '.ad', '.advertisement', '.cookie-banner', 
+    'script', 'style', 'noscript', 'iframe',
+    'header', 'footer', 'nav',
+    '.ad', '.advertisement', '.cookie-banner',
     '#sidebar', '.comments'
   ];
-  
+
   junkSelectors.forEach(selector => {
-    const elements = clone.querySelectorAll(selector);
-    elements.forEach(el => el.remove());
+    clone.querySelectorAll(selector).forEach(el => el.remove());
   });
 
-  // 3. Get text from the Cleaned DOM
-  let text = clone.innerText;
+  const paragraphs = Array.from(clone.querySelectorAll('p'))
+    .map(p => p.innerText.trim())
+    .filter(text => text.length > 20)
+    .slice(0, 10);
 
-  // 4. Remove excessive whitespace (tabs, double newlines)
-  text = text.replace(/\s+/g, ' ').trim();
+  const links = Array.from(clone.querySelectorAll('a[href]'))
+    .map(a => ({ text: a.innerText.trim(), url: a.href }))
+    .filter(l => l.text && l.url)
+    .slice(0, 20);
 
-  // 5. TRUNCATE: The most important part.
-  // Take only the first 2000 characters. 
-  // Usually, the main idea is in the first 20% of the page.
+  const images = Array.from(clone.querySelectorAll('img[src]'))
+    .map(img => ({ src: img.src, alt: img.alt || '' }))
+    .slice(0, 10);
+
+  const headings = Array.from(clone.querySelectorAll('h1, h2, h3'))
+    .map(h => h.innerText.trim())
+    .filter(Boolean)
+    .slice(0, 5);
+
+  const plainText = clone.innerText
+    .replace(/\s+/g, ' ')
+    .trim()
+    .substring(0, 2000);
+
   return {
     url: window.location.href,
     title: document.title,
-    content: text.substring(0, 2000) + "..." // Limit to 2k chars
+    content: plainText,
+    structured: {
+      paragraphs,
+      links,
+      images,
+      headings
+    }
   };
 })();

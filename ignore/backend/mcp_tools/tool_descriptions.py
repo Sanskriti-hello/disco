@@ -4,137 +4,164 @@ MCP Tool Descriptions for LLM Agent
 This module provides comprehensive tool descriptions that the LLM agent uses
 to understand what each MCP tool does, its inputs, outputs, and when to use it.
 
-The entertainment_builder.py discovers tools by scanning method docstrings.
-This registry provides additional context and can be injected into prompts.
+Updated to use SerpAPI-based tools which provide real, working data.
 """
 
 TOOL_DESCRIPTIONS = {
     # =========================================================================
-    # SEARCH TOOLS (search.py)
+    # SERPAPI SEARCH TOOLS (serpapi_tools.py) - PRODUCTION READY
     # =========================================================================
-    "SearchClient.search_brave_web": {
-        "name": "Web Search (Brave)",
-        "description": "Search the web for information using Brave Search engine. Returns titles, URLs, and snippets of matching web pages.",
+    "SerpAPIClient.search_web": {
+        "name": "Google Web Search",
+        "description": "Search Google for web pages, articles, and information. Returns organic results with titles, URLs, and snippets.",
         "inputs": {
-            "query": "str - The search query (e.g., 'best restaurants in NYC', 'python tutorials')",
-            "count": "int - Number of results to return (default: 10, max: 20)"
+            "query": "str - Search query (e.g., 'best laptops 2024', 'python tutorials')",
+            "location": "str - Location for localized results (default: 'United States')",
+            "num": "int - Number of results (default: 10)",
+            "hl": "str - Language code (default: 'en')",
+            "gl": "str - Country code (default: 'us')"
         },
-        "outputs": "Dict with 'web' key containing list of {title, url, description} results",
-        "use_when": "Need to find general information, articles, news, or any web content"
+        "outputs": "Dict with organic_results, knowledge_graph, related_searches, answer_box, top_stories",
+        "use_when": "Need to find general information, articles, documentation, or any web content"
     },
     
-    "SearchClient.search_brave_images": {
-        "name": "Image Search (Brave)",
-        "description": "Search for images using Brave Search. Returns image URLs, thumbnails, and source pages.",
+    "SerpAPIClient.search_images": {
+        "name": "Google Image Search",
+        "description": "Search Google Images. Returns high-quality image URLs, thumbnails, and sources.",
         "inputs": {
             "query": "str - What images to search for (e.g., 'sunset beach', 'modern architecture')",
-            "count": "int - Number of image results (default: 10)"
+            "location": "str - Location for results (default: 'United States')",
+            "num": "int - Number of images (default: 20)"
         },
-        "outputs": "Dict with 'images' key containing list of {url, thumbnail, source_url, title} results",
-        "use_when": "Need to find images, photos, graphics, or visual content"
+        "outputs": "Dict with images list containing {title, url, thumbnail, source, link, width, height}",
+        "use_when": "Need to find images, photos, or visual content for any purpose"
     },
     
-    "SearchClient.search_brave_videos": {
-        "name": "Video Search (Brave)",
-        "description": "Search for videos across the web. Returns video URLs, thumbnails, durations, and descriptions.",
+    "SerpAPIClient.search_news": {
+        "name": "Google News Search",
+        "description": "Search Google News for recent articles and headlines on any topic.",
         "inputs": {
-            "query": "str - What videos to search for (e.g., 'cooking tutorial', 'music video')",
-            "count": "int - Number of video results (default: 10)"
+            "query": "str - News search query (e.g., 'technology', 'climate change')",
+            "hl": "str - Language code (default: 'en')",
+            "gl": "str - Country code (default: 'us')"
         },
-        "outputs": "Dict with 'videos' key containing list of {url, thumbnail, title, duration, description} results",
-        "use_when": "Need to find videos from YouTube, Vimeo, or other video platforms"
+        "outputs": "Dict with articles list containing {title, link, source, date, snippet, thumbnail}",
+        "use_when": "Need current news, headlines, or recent coverage of any topic"
     },
     
-    "SearchClient.search_images_realtime": {
-        "name": "Real-Time Image Search",
-        "description": "High-quality real-time image search with advanced filtering. Better quality than Brave image search.",
+    "SerpAPIClient.search_shopping": {
+        "name": "Google Shopping Search",
+        "description": "Search Google Shopping for products with prices, ratings, and purchase links.",
         "inputs": {
-            "query": "str - Image search query",
-            "limit": "int - Max results (default: 10)",
-            "region": "str - Region code e.g. 'us', 'uk' (default: 'us')",
-            "safe_search": "str - 'on' or 'off' (default: 'off')"
+            "query": "str - Product search query (e.g., 'iPhone 15', 'wireless headphones')",
+            "location": "str - Location for pricing (default: 'United States')"
         },
-        "outputs": "Dict with image results including high-resolution URLs",
-        "use_when": "Need high-quality images with filtering options"
+        "outputs": "Dict with products list containing {title, price, link, source, rating, reviews, thumbnail, delivery}",
+        "use_when": "Need to compare products and prices across multiple retailers"
     },
     
-    "SearchClient.search_tavily": {
-        "name": "Web Search (Tavily)",
-        "description": "AI-optimized web search using Tavily. Returns answers along with sources. Better for research queries.",
+    "SerpAPIClient.search_amazon": {
+        "name": "Amazon Product Search",
+        "description": "Search Amazon directly for products with Prime status, ratings, and current prices.",
         "inputs": {
-            "query": "str - The research query",
-            "search_depth": "str - 'smart' or 'deep' (default: 'smart')"
+            "query": "str - Product search query",
+            "domain": "str - Amazon domain (default: 'amazon.com')"
         },
-        "outputs": "Dict with 'answer' (AI summary) and 'results' (source URLs and content)",
-        "use_when": "Need AI-summarized answers for research or factual queries"
+        "outputs": "Dict with products list containing {asin, title, price, rating, reviews_count, link, thumbnail, is_prime, is_best_seller}",
+        "use_when": "Need Amazon-specific product data including Prime eligibility and bestseller status"
     },
     
-    # =========================================================================
-    # YOUTUBE TOOLS (youtube.py)
-    # =========================================================================
-    "YouTubeMCP.search_videos": {
-        "name": "YouTube Video Search",
-        "description": "Search for YouTube videos by keyword. Returns video IDs, titles, thumbnails, view counts, and channel info.",
+    "SerpAPIClient.search_local": {
+        "name": "Google Local/Places Search",
+        "description": "Search for local businesses and places (restaurants, hotels, services) with ratings and contact info.",
         "inputs": {
-            "query": "str - Search query for videos",
-            "max_results": "int - Number of results (1-50, default: 10)",
-            "order": "str - Sort order: 'relevance', 'date', 'viewCount', 'rating'",
-            "published_after": "str - ISO 8601 date to filter recent videos (optional)"
+            "query": "str - Local search query (e.g., 'pizza near me', 'hotels in NYC')",
+            "location": "str - Location context (e.g., 'Austin, Texas')",
+            "hl": "str - Language code (default: 'en')",
+            "gl": "str - Country code (default: 'us')"
         },
-        "outputs": "List of dicts with {video_id, title, description, thumbnail, channel, view_count, published_at}",
-        "use_when": "Need to find YouTube videos on a topic"
+        "outputs": "Dict with places list containing {title, place_id, address, phone, rating, reviews, hours, website, gps_coordinates}",
+        "use_when": "Need to find local businesses, restaurants, hotels, or services in a specific area"
     },
     
-    "YouTubeMCP.get_video_details": {
-        "name": "YouTube Video Details",
-        "description": "Get detailed information about specific YouTube videos including stats, descriptions, and metadata.",
+    "SerpAPIClient.search_events": {
+        "name": "Google Events Search",
+        "description": "Search for events (concerts, shows, festivals, activities) in a location.",
         "inputs": {
-            "video_ids": "List[str] - List of YouTube video IDs to get details for"
+            "query": "str - Event search query (e.g., 'concerts in Austin', 'tech conferences 2024')",
+            "hl": "str - Language code (default: 'en')"
         },
-        "outputs": "List of video detail objects with full metadata",
-        "use_when": "Need detailed info about specific YouTube videos"
+        "outputs": "Dict with events list containing {title, date, address, venue, link, thumbnail, description, ticket_info}",
+        "use_when": "Need to find events, concerts, shows, or activities"
     },
     
-    "YouTubeMCP.get_trending_videos": {
-        "name": "YouTube Trending",
-        "description": "Get currently trending videos on YouTube for a specific region.",
+    "SerpAPIClient.search_scholar": {
+        "name": "Google Scholar Search",
+        "description": "Search Google Scholar for academic papers, research articles, and citations.",
         "inputs": {
-            "region_code": "str - Country code e.g. 'US', 'IN', 'GB' (default: 'US')",
-            "max_results": "int - Number of trending videos (default: 10)"
+            "query": "str - Academic search query (e.g., 'machine learning', 'climate change research')",
+            "hl": "str - Language code (default: 'en')",
+            "num": "int - Number of results (default: 10)"
         },
-        "outputs": "List of trending video objects",
-        "use_when": "Need to show popular/trending content on YouTube"
+        "outputs": "Dict with papers list containing {title, link, snippet, authors, summary, cited_by, pdf_link}",
+        "use_when": "Need academic research papers, scholarly articles, or scientific publications"
     },
     
-    "YouTubeMCP.get_watch_history": {
-        "name": "YouTube Watch History",
-        "description": "Get user's personal YouTube watch history. Requires OAuth authentication.",
+    "SerpAPIClient.search_flights": {
+        "name": "Google Flights Search",
+        "description": "Search for flights between airports with pricing and airline options.",
         "inputs": {
-            "max_results": "int - Number of history items (1-50, default: 50)",
-            "published_after": "str - ISO 8601 date filter (optional)"
+            "departure_id": "str - Departure airport code (e.g., 'JFK', 'LAX')",
+            "arrival_id": "str - Arrival airport code",
+            "outbound_date": "str - Departure date (YYYY-MM-DD)",
+            "return_date": "str - Return date for round trip (optional)",
+            "currency": "str - Currency for prices (default: 'USD')",
+            "adults": "int - Number of passengers (default: 1)"
         },
-        "outputs": "List of watched videos with timestamps",
-        "use_when": "Need user's personal watch history (requires OAuth)"
+        "outputs": "Dict with flights list containing {price, airline, duration, stops, departure_time, arrival_time}",
+        "use_when": "Need to find flight prices and options between cities"
     },
     
-    "YouTubeMCP.get_liked_videos": {
-        "name": "YouTube Liked Videos",
-        "description": "Get videos the user has liked on YouTube. Requires OAuth.",
+    "SerpAPIClient.explore_destinations": {
+        "name": "Google Travel Explore",
+        "description": "Explore travel destinations from a departure city with suggested prices.",
         "inputs": {
-            "max_results": "int - Number of liked videos (default: 50)"
+            "departure_id": "str - Departure airport code",
+            "currency": "str - Currency for prices (default: 'USD')"
         },
-        "outputs": "List of liked videos",
-        "use_when": "Need user's liked/favorite YouTube content"
+        "outputs": "Dict with destinations list containing {title, country, airport_code, price, image, description}",
+        "use_when": "Need travel destination suggestions and inspiration"
     },
     
-    "YouTubeMCP.get_subscriptions": {
-        "name": "YouTube Subscriptions",
-        "description": "Get channels the user is subscribed to. Requires OAuth.",
+    "SerpAPIClient.get_stock_info": {
+        "name": "Google Finance Stock",
+        "description": "Get stock/financial information for a ticker symbol.",
         "inputs": {
-            "max_results": "int - Number of subscriptions (default: 50)"
+            "ticker": "str - Stock ticker (e.g., 'GOOGL:NASDAQ', 'AAPL:NASDAQ')"
         },
-        "outputs": "List of subscribed channels",
-        "use_when": "Need user's YouTube channel subscriptions"
+        "outputs": "Dict with {ticker, title, price, currency, price_change, price_change_percentage, market_cap, graph}",
+        "use_when": "Need stock prices, market data, or financial information"
+    },
+    
+    "SerpAPIClient.get_market_trends": {
+        "name": "Google Finance Markets",
+        "description": "Get market trends and indices (gainers, losers, most active).",
+        "inputs": {
+            "trend": "str - Type: 'indexes', 'most-active', 'gainers', 'losers'"
+        },
+        "outputs": "Dict with market_trends data",
+        "use_when": "Need market overview, trending stocks, or index data"
+    },
+    
+    "SerpAPIClient.get_place_reviews": {
+        "name": "Google Maps Reviews",
+        "description": "Get customer reviews for a specific place from Google Maps.",
+        "inputs": {
+            "data_id": "str - Place data_id from local search results",
+            "hl": "str - Language code (default: 'en')"
+        },
+        "outputs": "Dict with reviews list containing {user, rating, date, snippet, likes}",
+        "use_when": "Need customer reviews and ratings for a specific business"
     },
     
     # =========================================================================
@@ -386,6 +413,134 @@ TOOL_DESCRIPTIONS = {
         },
         "outputs": "Dict with converted amount",
         "use_when": "Need to convert money between currencies"
+    },
+    
+    # =========================================================================
+    # LOCATION & WEATHER TOOLS (Loc_Weath_Dis.py)
+    # =========================================================================
+    "LocationWeatherMCP.search_places": {
+        "name": "Place Search",
+        "description": "Search for places using Nominatim/OpenStreetMap. Returns location data with coordinates, addresses, and nearby amenities.",
+        "inputs": {
+            "queries": "List[str] - List of place names or addresses to search"
+        },
+        "outputs": "Dict with place results including {name, address, lat, lon, map_url, nearby_amenities}",
+        "use_when": "Need to find locations, addresses, or nearby places"
+    },
+    
+    "LocationWeatherMCP.lookup_weather": {
+        "name": "Weather Lookup",
+        "description": "Get current weather conditions for a location using OpenWeatherMap API.",
+        "inputs": {
+            "lat": "float - Latitude coordinate",
+            "lon": "float - Longitude coordinate"
+        },
+        "outputs": "Dict with weather data including temperature, conditions, humidity, wind",
+        "use_when": "Need current weather information for a location"
+    },
+    
+    "LocationWeatherMCP.compute_routes": {
+        "name": "Route Calculator",
+        "description": "Compute driving/walking routes between two locations using OSRM.",
+        "inputs": {
+            "origin": "str - Starting location (address or place name)",
+            "destination": "str - Ending location (address or place name)"
+        },
+        "outputs": "Dict with route info including distance, duration, step-by-step directions, map_url",
+        "use_when": "Need directions or travel time between locations"
+    },
+    
+    # =========================================================================
+    # GOOGLE WORKSPACE TOOLS (google_workspace.py)
+    # =========================================================================
+    "GoogleWorkspaceMCP.get_calendar_events": {
+        "name": "Google Calendar Events",
+        "description": "Get upcoming calendar events with free/busy time analysis.",
+        "inputs": {
+            "time_min": "str - Start time in ISO format (optional, defaults to now)",
+            "time_max": "str - End time in ISO format (optional, defaults to 7 days)",
+            "max_results": "int - Maximum events to return (default: 10)"
+        },
+        "outputs": "Dict with {events, busy_dates, free_ranges}",
+        "use_when": "Need user's calendar events or availability"
+    },
+    
+    "GoogleWorkspaceMCP.create_event": {
+        "name": "Create Calendar Event",
+        "description": "Create a new Google Calendar event.",
+        "inputs": {
+            "summary": "str - Event title",
+            "start_time": "str - Start time in ISO format",
+            "end_time": "str - End time in ISO format",
+            "description": "str - Event description (optional)",
+            "location": "str - Event location (optional)",
+            "attendees": "List[str] - Email addresses of attendees (optional)"
+        },
+        "outputs": "Dict with {status, link, event_id}",
+        "use_when": "Need to create/schedule a calendar event"
+    },
+    
+    "GoogleWorkspaceMCP.search_drive": {
+        "name": "Google Drive Search",
+        "description": "Search for files in Google Drive by name or content.",
+        "inputs": {
+            "query": "str - Search query for file names",
+            "limit": "int - Maximum results (default: 10)",
+            "file_types": "List[str] - Filter by type: 'document', 'spreadsheet', 'presentation', 'pdf'"
+        },
+        "outputs": "List of files with {id, name, mimeType, webViewLink, modifiedTime}",
+        "use_when": "Need to find or access Google Drive files"
+    },
+    
+    "GoogleWorkspaceMCP.get_file_content": {
+        "name": "Google Doc Content",
+        "description": "Get the text content of a Google Doc.",
+        "inputs": {
+            "file_id": "str - Google Drive file ID"
+        },
+        "outputs": "str - Plain text content of the document",
+        "use_when": "Need to read contents of a Google Doc"
+    },
+    
+    "GoogleWorkspaceMCP.search_gmail": {
+        "name": "Gmail Search",
+        "description": "Search Gmail messages using Gmail search syntax.",
+        "inputs": {
+            "query": "str - Gmail search query (e.g., 'from:user@example.com', 'is:unread')",
+            "max_results": "int - Maximum messages to return (default: 10)"
+        },
+        "outputs": "List of emails with {id, from, to, subject, date, snippet}",
+        "use_when": "Need to search or retrieve emails"
+    },
+    
+    # =========================================================================
+    # FLASHCARD TOOLS (flashcard.py)
+    # =========================================================================
+    "FlashcardGenerator.generate_flashcards": {
+        "name": "Flashcard Generator",
+        "description": "Generate study flashcards from text content or a topic.",
+        "inputs": {
+            "content": "str - Text content to create flashcards from",
+            "num_cards": "int - Number of flashcards to generate (default: 10)",
+            "difficulty": "str - 'easy', 'medium', 'hard'"
+        },
+        "outputs": "List of flashcards with {question, answer, topic}",
+        "use_when": "Need to create study flashcards from material"
+    },
+    
+    # =========================================================================
+    # QUIZ TOOLS (quiz.py)
+    # =========================================================================
+    "QuizGenerator.generate_quiz": {
+        "name": "Quiz Generator",
+        "description": "Generate quiz questions from text content or a topic.",
+        "inputs": {
+            "content": "str - Text content or topic to create quiz from",
+            "num_questions": "int - Number of questions (default: 5)",
+            "question_type": "str - 'multiple_choice', 'true_false', 'short_answer'"
+        },
+        "outputs": "List of quiz questions with {question, options, correct_answer, explanation}",
+        "use_when": "Need to create practice quizzes or assessments"
     },
 }
 

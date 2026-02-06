@@ -8,6 +8,7 @@ load_dotenv()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from langchain_groq import ChatGroq
 
 # Add the current directory to sys.path to ensure modules like 'domains' and 'mcp_tools' can be imported
 current_dir = os.path.dirname(os.path.abspath(__file__))

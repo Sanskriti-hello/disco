@@ -75,6 +75,15 @@ async def sandbox_logic_node(state: AgentState) -> AgentState:
     prompt = state["user_prompt"]
     tabs = state["tabs"]
     
+    # Debug: Check tab data
+    print(f"📊 Tabs received: {len(tabs)}")
+    if tabs and len(tabs) > 0:
+        print(f"📋 First tab structure: {tabs[0].keys()}")
+        if 'structured' in tabs[0]:
+            print(f"✅ Structured data present: {tabs[0]['structured'].keys()}")
+        else:
+            print(f"⚠️ No 'structured' key in tabs!")
+    
     attempts = state.get("validation_attempts", 0)
     if attempts > 3:
         return {**state, "error": "Maximum attempts reached"}
@@ -135,16 +144,17 @@ async def sandbox_logic_node(state: AgentState) -> AgentState:
                 template_structure = json.loads(raw_json)
                 print(f"📦 Template structure keys: {list(template_structure.keys())}")
                 
-                # ✅ USE MCP TOOLS DIRECTLY - NOT LLM
+                # ✅ USE LLM WITH MCP TOOLS AND TAB DATA
                 from sandbox_builders.entertainment_builder import fill_data_with_mcp_tools
                 
                 template_data = fill_data_with_mcp_tools(
                     template_data=template_structure,
                     domain=domain_name,
-                    context=page_context
+                    context=page_context,
+                    tabs_structured_data=tabs
                 )
                 
-                print(f"✅ Data filled with MCP tools")
+                print(f"✅ Data filled with LLM + MCP tools")
                 print(f"📊 Filled data keys: {list(template_data.keys())}")
                 
                 # Debug: Show a sample of filled data
@@ -219,10 +229,10 @@ async def render_ui_node(state: AgentState) -> AgentState:
         
         print(f"📁 Building sandbox from: {template_path.name}")
         
-        # ✅ COLLECT FILES WITHOUT RE-FILLING
+        # ✅ COLLECT ALL FILES (INCLUDING data.json as fallback)
         sandbox_files = {}
+        index_html_path = None
         
-        # Collect all files except data.json (we'll inject our own)
         SKIP_DIRS = {".git", "node_modules", "dist", "__pycache__", ".vscode"}
         SKIP_FILES = {"sandbox_builder.py"}
         
@@ -238,25 +248,48 @@ async def render_ui_node(state: AgentState) -> AgentState:
                 str_path = str(rel_path).replace("\\", "/")
                 
                 try:
-                    # ✅ Skip data.json - we'll inject our own
-                    if filename == "data.json":
-                        print(f"⏭️ Skipping original {str_path} (will inject filled version)")
-                        continue
-                    
                     content = file_path.read_text(encoding="utf-8")
                     sandbox_files[str_path] = {"content": content}
+                    
+                    # Track index.html for data injection
+                    if filename == "index.html":
+                        index_html_path = str_path
                     
                 except UnicodeDecodeError:
                     print(f"⏭️ Skipped binary file: {str_path}")
                 except Exception as e:
                     print(f"⚠️ Could not read {str_path}: {e}")
         
-        # ✅ NOW INJECT THE FILLED DATA
-        filled_json_content = json.dumps(template_data, ensure_ascii=False, indent=2)
-        sandbox_files["src/data.json"] = {"content": filled_json_content}
-        
-        print(f"✅ Injected filled data.json ({len(filled_json_content)} chars)")
-        print(f"📊 Data preview:\n{filled_json_content[:300]}...")
+        # ✅ INJECT DATA VIA window.__DASHBOARD_DATA__ (RUNTIME INJECTION)
+        # This is bundler-safe and works across all templates
+        if index_html_path and index_html_path in sandbox_files:
+            filled_json_str = json.dumps(template_data, ensure_ascii=False)
+            index_html = sandbox_files[index_html_path]["content"]
+            
+            # Inject script before </head> or </body>
+            injection_script = f"""
+    <script>
+      // Runtime data injection - populated by backend
+      window.__DASHBOARD_DATA__ = {filled_json_str};
+      console.log('✅ Dashboard data injected:', window.__DASHBOARD_DATA__);
+    </script>"""
+            
+            if "</head>" in index_html:
+                index_html = index_html.replace("</head>", f"{injection_script}\n  </head>")
+                print(f"✅ Injected runtime data into <head> ({len(filled_json_str)} chars)")
+            elif "</body>" in index_html:
+                index_html = index_html.replace("</body>", f"{injection_script}\n  </body>")
+                print(f"✅ Injected runtime data into <body> ({len(filled_json_str)} chars)")
+            else:
+                print(f"⚠️ Warning: Could not find </head> or </body> in index.html")
+            
+            sandbox_files[index_html_path]["content"] = index_html
+            
+            # Show data preview
+            preview = json.dumps(template_data, ensure_ascii=False, indent=2)[:300]
+            print(f"📊 Data preview:\n{preview}...")
+        else:
+            print(f"⚠️ Warning: index.html not found, data injection skipped")
         
         print(f"📦 Total sandbox files: {len(sandbox_files)}")
         

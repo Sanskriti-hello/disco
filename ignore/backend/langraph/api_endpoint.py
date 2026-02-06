@@ -21,6 +21,7 @@ class TabData(BaseModel):
     title: str
     url: str
     content: str
+    structured: Optional[Dict[str, Any]] = {}
 
 
 class DomainSelectionRequest(BaseModel):
