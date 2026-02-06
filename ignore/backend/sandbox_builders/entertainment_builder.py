@@ -1777,7 +1777,8 @@ def update_json(
     """
     try:
         template = json.loads(content)
-    except Exception:
+    except Exception as e:
+        print(f"[DEBUG] Failed to parse input JSON: {e}")
         return content
 
     tools_path = Path(__file__).resolve().parent.parent / "mcp_tools"
@@ -1786,7 +1787,7 @@ def update_json(
     try:
         from langchain.tools import Tool
         from langchain.agents import initialize_agent, AgentType
-        from langchain_groq import ChatGroq
+        from langchain.chat_models import ChatGroq
     except Exception:
         Tool = None
         initialize_agent = None
@@ -1898,6 +1899,7 @@ def update_json(
             self._init_agent()
 
         def _discover_tools(self) -> None:
+            print("[DEBUG] Discovering tools...")
             """
             Auto-discover tools by scanning mcp_tools directory.
 
@@ -1905,11 +1907,14 @@ def update_json(
             their public methods as LangChain tools. Skips errors gracefully.
             """
             if Tool is None:
+                print("[DEBUG] LangChain Tool not available.")
                 return
             if not self.tools_dir.exists():
+                print(f"[DEBUG] Tools directory {self.tools_dir} does not exist.")
                 return
 
             for py_file in sorted(self.tools_dir.glob("*.py")):
+                print(f"[DEBUG] Loading module: {py_file.name}")
                 try:
                     # Load the module dynamically
                     module_name = f"mcp_tools.{py_file.stem}"
@@ -1947,23 +1952,30 @@ def update_json(
                                     Call the method with arguments provided as a JSON string.
 
                                     Instantiates the class, parses the JSON, and calls the method.
+                                    Always returns a JSON object: {"status": "success", "result": ...} or {"status": "error", "message": ...}
                                     """
+                                    import json
                                     try:
                                         instance = cls()
                                         fn = getattr(instance, method_to_call)
                                         # Parse JSON arguments
                                         if json_argument:
-                                            args = json.loads(json_argument)
+                                            try:
+                                                args = json.loads(json_argument)
+                                            except Exception as e:
+                                                return json.dumps({"status": "error", "message": f"Invalid JSON input: {e}"})
                                             if not isinstance(args, dict):
-                                                return f"Tool error: Arguments must be a JSON object (dict), but received {type(args).__name__}"
+                                                return json.dumps({"status": "error", "message": f"Arguments must be a JSON object (dict), but received {type(args).__name__}"})
                                         else:
                                             args = {}
-                                        
                                         # Call the method with unpacked arguments
-                                        result = fn(**args)
-                                        return json.dumps(result)
+                                        try:
+                                            result = fn(**args)
+                                            return json.dumps({"status": "success", "result": result})
+                                        except Exception as e:
+                                            return json.dumps({"status": "error", "message": str(e)})
                                     except Exception as error:
-                                        return f"Tool error: {error}"
+                                        return json.dumps({"status": "error", "message": str(error)})
 
                                 return call
 
@@ -1972,15 +1984,13 @@ def update_json(
                                 doc_string = (
                                     getattr(class_obj, method_name).__doc__ or ""
                                 ).strip()
-                                # Enhance description to explicitly state JSON input and output expectation
                                 enhanced_doc_string = (
                                     f"{doc_string}\n\n"
                                     "**Input**: This tool expects arguments as a JSON string, "
                                     "e.g., `{\"param1\": \"value1\", \"param2\": \"value2\"}`. "
                                     "Refer to the method's docstring for available parameters.\n"
-                                    "**Output**: On success, returns a JSON object containing the tool's result. "
-                                    "Look for data under keys like 'data' or 'result'. "
-                                    "On failure, returns a JSON object like `{\"status\": \"error\", \"message\": \"Error details\"}`."
+                                    "**Output**: Always returns a JSON object. On success: `{\"status\": \"success\", \"result\": ...}`. "
+                                    "On failure: `{\"status\": \"error\", \"message\": \"Error details\"}`."
                                 )
                                 tool = Tool(
                                     name=f"{class_name}.{method_name}",
@@ -1988,9 +1998,9 @@ def update_json(
                                     description=enhanced_doc_string,
                                 )
                                 self.tools.append(tool)
+                                print(f"[DEBUG] Tool wrapped: {class_name}.{method_name}")
                             except Exception as e:
-                                _logger.debug(f"Failed to wrap tool {class_name}.{method_name}: {e}")
-                                # Skip tools that can't be wrapped
+                                print(f"[DEBUG] Failed to wrap tool {class_name}.{method_name}: {e}")
                                 continue
                 except Exception as e:
                     _logger.debug(f"Failed to load module {py_file.stem}: {e}")
@@ -1998,6 +2008,7 @@ def update_json(
                     continue
 
         def _init_agent(self) -> None:
+            print(f"[DEBUG] Initializing LLM agent with {len(self.tools)} tools...")
             """
             Initialize the LLM agent with discovered tools.
 
@@ -2009,11 +2020,13 @@ def update_json(
             Otherwise leaves agent_executor as None (triggers fallback).
             """
             if ChatGroq is None or initialize_agent is None or not self.tools:
+                print("[DEBUG] ChatGroq or initialize_agent not available, or no tools discovered.")
                 return
 
             try:
                 api_key = self.groq_key or os.getenv("GROQ_API_KEY")
                 if not api_key:
+                    print("[DEBUG] GROQ_API_KEY not set.")
                     return
 
                 # Initialize Groq LLM (handle different version signatures)
@@ -2022,18 +2035,15 @@ def update_json(
                 else:
                     llm = ChatGroq(api_key=api_key)
 
-                # Initialize agent with ZERO_SHOT_REACT_DESCRIPTION
                 self.agent_executor = initialize_agent(
                     self.tools,
                     llm,
                     agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-                    verbose=False,
+                    verbose=True,
                 )
-                _logger.debug(
-                    f"LLM agent initialized with {len(self.tools)} tools"
-                )
+                print(f"[DEBUG] LLM agent initialized with {len(self.tools)} tools.")
             except Exception as error:
-                _logger.debug(f"Failed to initialize LLM agent: {error}")
+                print(f"[DEBUG] Failed to initialize LLM agent: {error}")
                 self.agent_executor = None
 
         def fill(

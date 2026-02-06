@@ -1,3 +1,12 @@
+def llm_generate_quiz(payload: str) -> dict:
+  """LLM adapter: Generate quiz. Payload: {"text": str, "n_questions": int}"""
+  import json
+  try:
+    args = json.loads(payload)
+    result = generate_quiz(args["text"], int(args.get("n_questions", 5)))
+    return {"status": "success", "result": result}
+  except Exception as e:
+    return {"status": "error", "message": str(e)}
 import os
 from google import genai
 from google.genai import types

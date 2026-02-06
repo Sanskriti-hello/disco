@@ -1,3 +1,12 @@
+def llm_summarize_text(payload: str) -> dict:
+    """LLM adapter: Summarize text. Payload: {"text": str}"""
+    import json
+    try:
+        args = json.loads(payload)
+        result = summarize_text(args["text"])
+        return {"status": "success", "result": result}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 """
 Text Summarization MCP Tool
 ============================
