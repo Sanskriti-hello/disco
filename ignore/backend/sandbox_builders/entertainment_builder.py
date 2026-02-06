@@ -1520,8 +1520,10 @@ class EntertainmentAppSandboxBuilder:
                     # Read file content
                     content = file_path.read_text(encoding="utf-8")
 
-                    # Process JSON files through content filling system
-                    if filename.endswith(".json"):
+                    # ✅ Only process JSON if context is provided
+                    # When context is empty, JSON files are read as-is
+                    # (filled data will be injected later in render_ui_node)
+                    if filename.endswith(".json") and self.context:
                         content = self._fill_json_content(content)
 
                     files[str_path] = {"content": content}

@@ -69,9 +69,6 @@ Open Tabs:
 async def sandbox_logic_node(state: AgentState) -> AgentState:
     """
     Execute sandbox-based logic using MCP tools for data acquisition.
-    
-    This replaces the deprecated domain_logic_node that used domain agents.
-    Uses entertainment_builder's update_json for LLM-driven JSON filling.
     """
     
     domain_name = state["primary_domain"] or "generic"
@@ -89,7 +86,7 @@ async def sandbox_logic_node(state: AgentState) -> AgentState:
         page_context = _build_page_context(state)
         print(f"📋 Page context built ({len(page_context)} chars)")
         
-        # Select template first
+        # Select template
         from ui_templates.template_loader import TemplateLoader
         loader = TemplateLoader()
         
@@ -107,12 +104,8 @@ async def sandbox_logic_node(state: AgentState) -> AgentState:
         template_id = template_info["template_id"]
         print(f"🎨 Selected template: {template_id}")
         
-        # Load template's data.json for filling
-        # Note: Template directories may have different naming (e.g., entertainment-template vs entertainment-1)
-        # We search for matching directories based on domain
+        # Load template's data.json
         from pathlib import Path
-        import glob
-        
         ui_templates_dir = Path(__file__).parent.parent / "ui_templates"
         data_json_path = None
         
@@ -136,32 +129,35 @@ async def sandbox_logic_node(state: AgentState) -> AgentState:
         if data_json_path and data_json_path.exists():
             try:
                 raw_json = data_json_path.read_text(encoding='utf-8')
+                print(f"📄 Loaded template data.json ({len(raw_json)} chars)")
                 
-                # Use sandbox_builder's LLM-driven JSON filling with MCP tools
-                from sandbox_builders.entertainment_builder import update_json
+                # Parse template to see structure
+                template_structure = json.loads(raw_json)
+                print(f"📦 Template structure keys: {list(template_structure.keys())}")
                 
-                # Build field-level context from template structure
-                field_context = f"""
-Fill this JSON template for a {domain_name} dashboard.
-User wants: {prompt}
-Use real data from web search when needed.
-"""
+                # ✅ USE MCP TOOLS DIRECTLY - NOT LLM
+                from sandbox_builders.entertainment_builder import fill_data_with_mcp_tools
                 
-                filled_json = update_json(
-                    content=raw_json,
-                    page_context=page_context,
-                    field_context=field_context
+                template_data = fill_data_with_mcp_tools(
+                    template_data=template_structure,
+                    domain=domain_name,
+                    context=page_context
                 )
                 
-                template_data = json.loads(filled_json)
-                print(f"📦 Filled template data with keys: {list(template_data.keys())}")
+                print(f"✅ Data filled with MCP tools")
+                print(f"📊 Filled data keys: {list(template_data.keys())}")
+                
+                # Debug: Show a sample of filled data
+                sample = json.dumps(template_data, indent=2)[:500]
+                print(f"📝 Sample of filled data:\n{sample}")
                 
             except Exception as e:
                 print(f"⚠️ JSON filling failed, using raw template: {e}")
+                import traceback
+                traceback.print_exc()
                 template_data = json.loads(raw_json) if 'raw_json' in locals() else {}
         else:
             print(f"⚠️ No data.json found for domain: {domain_name}")
-            # Generate minimal template data
             template_data = {
                 "title": prompt[:50] if prompt else f"{domain_name.title()} Dashboard",
                 "domain": domain_name,
@@ -171,7 +167,7 @@ Use real data from web search when needed.
         return {
             **state,
             "selected_template": template_id,
-            "template_data": template_data
+            "template_data": template_data  # ✅ This is our filled data
         }
         
     except Exception as e:
@@ -186,27 +182,33 @@ domain_logic_node = sandbox_logic_node
 
 
 async def render_ui_node(state: AgentState) -> AgentState:
-    """Build CodeSandbox file structure from template directory with LLM-filled data"""
+    """Build CodeSandbox file structure from template directory with FILLED data"""
     
     try:
         from pathlib import Path
-        from sandbox_builders.entertainment_builder import EntertainmentAppSandboxBuilder
         import json
+        import os
         
         template_id = state.get("selected_template", "generic-1")
         domain = state.get("primary_domain", "generic")
-        user_prompt = state.get("user_prompt", "")
-        template_data = state.get("template_data", {})  # Get the LLM-filled data
         
-        # Build context for the sandbox builder
-        page_context = _build_page_context(state)
+        # ✅ GET THE ALREADY-FILLED DATA FROM STATE (from sandbox_logic_node)
+        template_data = state.get("template_data", {})
+        
+        if not template_data:
+            print("⚠️ WARNING: No template_data in state!")
+            return {
+                **state,
+                "error": "No template data available"
+            }
+        
+        print(f"📦 Using filled data with keys: {list(template_data.keys())}")
         
         # Find the template directory
         ui_templates_dir = Path(__file__).parent.parent / "ui_templates"
         template_path = ui_templates_dir / template_id
         
         if not template_path.exists():
-            # Try finding by domain
             for template_dir in ui_templates_dir.iterdir():
                 if template_dir.is_dir() and domain in template_dir.name.lower():
                     template_path = template_dir
@@ -215,34 +217,50 @@ async def render_ui_node(state: AgentState) -> AgentState:
         if not template_path.exists():
             raise FileNotFoundError(f"Template directory not found: {template_id}")
         
-        print(f"📁 Building sandbox from template directory: {template_path.name}")
+        print(f"📁 Building sandbox from: {template_path.name}")
         
-        # Use EntertainmentAppSandboxBuilder to build the complete sandbox
-        builder = EntertainmentAppSandboxBuilder(
-            context=page_context,
-            project_dir=template_path
-        )
+        # ✅ COLLECT FILES WITHOUT RE-FILLING
+        sandbox_files = {}
         
-        sandbox_files = builder.build_sandbox()
+        # Collect all files except data.json (we'll inject our own)
+        SKIP_DIRS = {".git", "node_modules", "dist", "__pycache__", ".vscode"}
+        SKIP_FILES = {"sandbox_builder.py"}
         
-        # INJECT THE LLM-FILLED DATA into data.json
-        if template_data:
-            filled_json_content = json.dumps(template_data, ensure_ascii=False, indent=2)
+        for root, dirs, filenames in os.walk(template_path):
+            dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
             
-            # Find and replace data.json in sandbox_files
-            data_json_keys = [k for k in sandbox_files.keys() if 'data.json' in k]
-            if data_json_keys:
-                for key in data_json_keys:
-                    sandbox_files[key] = {"content": filled_json_content}
-                    print(f"✅ Injected LLM-filled data into {key}")
-            else:
-                # Add data.json if it doesn't exist
-                sandbox_files["src/data.json"] = {"content": filled_json_content}
-                print(f"✅ Added src/data.json with LLM-filled data")
+            for filename in filenames:
+                if filename in SKIP_FILES:
+                    continue
+                    
+                file_path = Path(root) / filename
+                rel_path = file_path.relative_to(template_path)
+                str_path = str(rel_path).replace("\\", "/")
+                
+                try:
+                    # ✅ Skip data.json - we'll inject our own
+                    if filename == "data.json":
+                        print(f"⏭️ Skipping original {str_path} (will inject filled version)")
+                        continue
+                    
+                    content = file_path.read_text(encoding="utf-8")
+                    sandbox_files[str_path] = {"content": content}
+                    
+                except UnicodeDecodeError:
+                    print(f"⏭️ Skipped binary file: {str_path}")
+                except Exception as e:
+                    print(f"⚠️ Could not read {str_path}: {e}")
         
-        print(f"📦 Built sandbox with {len(sandbox_files)} files")
+        # ✅ NOW INJECT THE FILLED DATA
+        filled_json_content = json.dumps(template_data, ensure_ascii=False, indent=2)
+        sandbox_files["src/data.json"] = {"content": filled_json_content}
         
-        # Extract App.jsx or main component as react_code for backward compatibility
+        print(f"✅ Injected filled data.json ({len(filled_json_content)} chars)")
+        print(f"📊 Data preview:\n{filled_json_content[:300]}...")
+        
+        print(f"📦 Total sandbox files: {len(sandbox_files)}")
+        
+        # Extract App.jsx for backward compatibility
         react_code = None
         for path, file_data in sandbox_files.items():
             if "App.jsx" in path or "App.js" in path:
@@ -264,8 +282,8 @@ async def render_ui_node(state: AgentState) -> AgentState:
             **state,
             "react_code": None,
             "error": f"Template generation failed: {str(e)}"
-
         }
+
 
 
 async def codesandbox_check_node(state: AgentState) -> AgentState:
