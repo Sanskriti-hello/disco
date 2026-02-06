@@ -1101,32 +1101,26 @@ def update_json(
                             def make_tool_callable(cls: type, method_to_call: str):
                                 """Closure to capture class and method name."""
 
-                                def call(argument: str):
+                                def call(json_argument: str) -> str:
                                     """
-                                    Call the method with the given argument.
+                                    Call the method with arguments provided as a JSON string.
 
-                                    Instantiates the class, inspects the method
-                                    signature, and calls it with appropriate args.
+                                    Instantiates the class, parses the JSON, and calls the method.
                                     """
                                     try:
                                         instance = cls()
                                         fn = getattr(instance, method_to_call)
-                                        sig = inspect.signature(fn)
-                                        positional_params = [
-                                            p
-                                            for p in sig.parameters.values()
-                                            if p.kind
-                                            in (
-                                                p.POSITIONAL_ONLY,
-                                                p.POSITIONAL_OR_KEYWORD,
-                                            )
-                                        ]
-
-                                        if len(positional_params) == 0:
-                                            return fn()
+                                        # Parse JSON arguments
+                                        if json_argument:
+                                            args = json.loads(json_argument)
+                                            if not isinstance(args, dict):
+                                                return f"Tool error: Arguments must be a JSON object (dict), but received {type(args).__name__}"
                                         else:
-                                            # Pass argument to the method
-                                            return fn(argument)
+                                            args = {}
+                                        
+                                        # Call the method with unpacked arguments
+                                        result = fn(**args)
+                                        return json.dumps(result)
                                     except Exception as error:
                                         return f"Tool error: {error}"
 
@@ -1137,16 +1131,28 @@ def update_json(
                                 doc_string = (
                                     getattr(class_obj, method_name).__doc__ or ""
                                 ).strip()
+                                # Enhance description to explicitly state JSON input and output expectation
+                                enhanced_doc_string = (
+                                    f"{doc_string}\n\n"
+                                    "**Input**: This tool expects arguments as a JSON string, "
+                                    "e.g., `{\"param1\": \"value1\", \"param2\": \"value2\"}`. "
+                                    "Refer to the method's docstring for available parameters.\n"
+                                    "**Output**: On success, returns a JSON object containing the tool's result. "
+                                    "Look for data under keys like 'data' or 'result'. "
+                                    "On failure, returns a JSON object like `{\"status\": \"error\", \"message\": \"Error details\"}`."
+                                )
                                 tool = Tool(
                                     name=f"{class_name}.{method_name}",
                                     func=tool_callable,
-                                    description=doc_string,
+                                    description=enhanced_doc_string,
                                 )
                                 self.tools.append(tool)
-                            except Exception:
+                            except Exception as e:
+                                _logger.debug(f"Failed to wrap tool {class_name}.{method_name}: {e}")
                                 # Skip tools that can't be wrapped
                                 continue
-                except Exception:
+                except Exception as e:
+                    _logger.debug(f"Failed to load module {py_file.stem}: {e}")
                     # Skip modules that can't be loaded
                     continue
 
