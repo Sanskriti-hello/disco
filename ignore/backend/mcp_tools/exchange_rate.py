@@ -35,6 +35,17 @@ class FinanceConfig:
 
 
 class FinancialClient:
+        def llm_convert_currency(self, payload: str) -> dict:
+            """LLM adapter: Convert currency. Payload: {"from_curr": str, "to_curr": str, "amount": float}"""
+            import json
+            try:
+                args = json.loads(payload)
+                result = self.convert_currency(
+                    args["from_curr"], args["to_curr"], float(args["amount"])
+                )
+                return {"status": "success", "result": result}
+            except Exception as e:
+                return {"status": "error", "message": str(e)}
     """
     Client for financial data including currency, stocks, and crypto.
     

@@ -1,3 +1,12 @@
+def llm_generate_flashcards(payload: str) -> dict:
+  """LLM adapter: Generate flashcards. Payload: {"notes": str, "n_cards": int}"""
+  import json
+  try:
+    args = json.loads(payload)
+    result = generate_flashcards(args["notes"], int(args.get("n_cards", 10)))
+    return {"status": "success", "result": result}
+  except Exception as e:
+    return {"status": "error", "message": str(e)}
 import os
 import google.generativeai as genai
 from dotenv import load_dotenv

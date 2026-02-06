@@ -53,6 +53,21 @@ class AmazonConfig:
 
 
 class AmazonClient:
+        def llm_search_products(self, payload: str) -> dict:
+            """LLM adapter: Search products. Payload: {"query": str, "country": str, "page": int, "sort_by": str, "category_id": str}"""
+            import json
+            try:
+                args = json.loads(payload)
+                result = self.search_products(
+                    args["query"],
+                    args.get("country"),
+                    int(args.get("page", 1)),
+                    args.get("sort_by"),
+                    args.get("category_id")
+                )
+                return {"status": "success", "result": result}
+            except Exception as e:
+                return {"status": "error", "message": str(e)}
     """
     Client for the Real-Time Amazon Data API.
     
