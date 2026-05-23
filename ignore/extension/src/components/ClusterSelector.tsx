@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 
 // Declare chrome global for TypeScript
 declare const chrome: {
@@ -19,6 +19,7 @@ declare const chrome: {
     tabs: {
         getCurrent: (callback: (tab: any) => void) => void;
         update: (tabId: number, options: { url: string }) => void;
+        create: (createProperties: { url: string }) => void;
     };
 };
 
@@ -33,8 +34,12 @@ interface Cluster {
     cluster_id: number;
     tabs: Tab[];
     domain: string;
+    title: string;
     summary: string;
-    cluster_name: string;
+    intent?: string;
+    keywords?: string[];
+    representative_tabs?: string[];
+    tab_count?: number;
 }
 
 interface DomainResult {
@@ -47,31 +52,20 @@ interface DomainResult {
 
 interface DashboardConfig {
     success: boolean;
-    domain: string;
-    selected_template: string;
-    template_url?: string;
-    figma_node_id?: string;
-    ui_props: Record<string, unknown>;
-    react_code?: string;
-    widgets: unknown[];
+    template: string;
+    dashboard: Record<string, unknown>;
     error?: string;
-    sandbox_id?: string;
-    sandbox_embed_url?: string;
-    sandbox_preview_url?: string;
 }
 
 // Domain icons and colors
 const DOMAIN_CONFIG: Record<string, { icon: string; color: string; label: string }> = {
-    study: { icon: "📚", color: "#8B5CF6", label: "Study" },
-    shopping: { icon: "🛒", color: "#F59E0B", label: "Shopping" },
-    travel: { icon: "✈️", color: "#06B6D4", label: "Travel" },
-    code: { icon: "💻", color: "#10B981", label: "Code" },
-    entertainment: { icon: "🎬", color: "#EC4899", label: "Entertainment" },
-    generic: { icon: "📋", color: "#6B7280", label: "General" }
+    study: { icon: "ðŸ“š", color: "#8B5CF6", label: "Study" },
+    shopping: { icon: "ðŸ›’", color: "#F59E0B", label: "Shopping" },
+    travel: { icon: "âœˆï¸", color: "#06B6D4", label: "Travel" },
+    code: { icon: "ðŸ’»", color: "#10B981", label: "Code" },
+    entertainment: { icon: "ðŸŽ¬", color: "#EC4899", label: "Entertainment" },
+    generic: { icon: "ðŸ“‹", color: "#6B7280", label: "General" }
 };
-
-// Hardcoded API key (loaded from env during build)
-const API_KEY = "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";
 
 interface ClusterSelectorProps {
     isOpen: boolean;
@@ -94,11 +88,41 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
     const [domainResult, setDomainResult] = useState<DomainResult | null>(null);
     const [dashboardConfig, setDashboardConfig] = useState<DashboardConfig | null>(null);
     const [step, setStep] = useState<"init" | "clusters" | "result" | "dashboard">("init");
+    const [connectionStatus, setConnectionStatus] = useState<"checking" | "connected" | "offline" | "fallback">("checking");
 
-    // Auto-analyze when popup opens
+    const openDashboardPage = async () => {
+        const dashboardUrl = chrome.runtime.getURL("dashboard.html");
+        try {
+            const response = await fetch(dashboardUrl, { method: "GET" });
+            if (!response.ok) {
+                console.error("[dashboard] page missing", dashboardUrl, response.status);
+                setStatus("Dashboard page is missing from build output. Rebuild extension.");
+                return;
+            }
+        } catch (e) {
+            console.error("[dashboard] failed to verify page", e);
+            setStatus("Failed to verify dashboard page before opening.");
+            return;
+        }
+        console.log("[dashboard] opening", dashboardUrl);
+        chrome.tabs.create({ url: dashboardUrl });
+    };
+
     useEffect(() => {
-        if (isOpen && step === "init" && clusters.length === 0) {
-            // Auto-start analysis when opened
+        if (isOpen) {
+            chrome.runtime.sendMessage({ action: "healthCheck" }, (response: any) => {
+                if (chrome.runtime?.lastError || !response?.success) {
+                    setConnectionStatus("offline");
+                    setStatus("Backend offline. Start backend on http://127.0.0.1:8000");
+                    return;
+                }
+                if (response?.health?.llm_available) {
+                    setConnectionStatus("connected");
+                } else {
+                    setConnectionStatus("fallback");
+                    setStatus("Backend connected. LLM unavailable, fallback mode active.");
+                }
+            });
         }
     }, [isOpen]);
 
@@ -113,7 +137,7 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
         setStatus("Analyzing your tabs...");
 
         chrome.runtime.sendMessage(
-            { action: "clusterTabs", apiKey: API_KEY },
+            { action: "clusterTabs" },
             (response: unknown) => {
                 // MANDATORY: Check for runtime errors first
                 if (chrome.runtime?.lastError) {
@@ -157,7 +181,6 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
         chrome.runtime.sendMessage(
             {
                 action: "selectDomain",
-                apiKey: API_KEY,
                 clusterId: clusterId,
                 userPrompt: customPrompt.trim()
             },
@@ -188,13 +211,13 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
     // NEW: Handle Google Login
     const handleGoogleLogin = () => {
         setLoading(true);
-        setStatus("🔐 Signing in with Google...");
+        setStatus("ðŸ” Signing in with Google...");
         chrome.runtime.sendMessage({ action: "getAuthToken" }, (response: any) => {
             setLoading(false);
             if (response?.success) {
-                setStatus("✅ Authenticated with Google!");
+                setStatus("âœ… Authenticated with Google!");
             } else {
-                setStatus(`❌ Auth failed: ${response?.error || 'Unknown error'}`);
+                setStatus(`âŒ Auth failed: ${response?.error || 'Unknown error'}`);
             }
         });
     };
@@ -207,7 +230,7 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
         }
 
         setLoading(true);
-        setStatus("🚀 Generating AI Dashboard...");
+        setStatus("ðŸš€ Generating AI Dashboard...");
 
         chrome.runtime.sendMessage(
             { action: "generateDashboard", userPrompt: customPrompt },
@@ -223,7 +246,7 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
 
                 if (res?.success && res.config) {
                     setDashboardConfig(res.config);
-                    setStatus("✅ Dashboard generated!");
+                    setStatus("âœ… Dashboard generated!");
                     setStep("dashboard");
                     onDashboardGenerated?.(res.config);
 
@@ -266,20 +289,26 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
                 {/* Header */}
                 <div className="sticky top-0 bg-[#0a0a1a] p-5 pb-3 border-b border-[#ffffff1a] flex items-center justify-between z-10">
                     <h2 className="font-['Hanken_Grotesk'] font-medium text-[#ffffffcc] text-xl">
-                        🎯 What are you working on?
+                        ðŸŽ¯ What are you working on?
                     </h2>
                     <button
                         onClick={onClose}
                         className="w-8 h-8 flex items-center justify-center rounded-full bg-[#ffffff1a] hover:bg-[#ffffff26] transition-colors text-[#ffffffcc]"
                     >
-                        ✕
+                        âœ•
                     </button>
                 </div>
 
                 {/* Content */}
                 <div className="p-5">
                     {/* Status */}
-                    <p className="text-[#ffffff80] text-sm mb-4 text-center">{status}</p>
+                    <p className="text-[#ffffff80] text-sm mb-2 text-center">{status}</p>
+                    <p className="text-xs text-center mb-4">
+                        {connectionStatus === "connected" && "Backend connected"}
+                        {connectionStatus === "offline" && "Backend offline"}
+                        {connectionStatus === "checking" && "Checking backend..."}
+                        {connectionStatus === "fallback" && "Fallback mode active"}
+                    </p>
 
                     {/* Step 1: Analyze button */}
                     {step === "init" && (
@@ -294,11 +323,11 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
                             >
                                 {loading ? (
                                     <>
-                                        <span className="animate-spin">⏳</span>
+                                        <span className="animate-spin">â³</span>
                                         Analyzing...
                                     </>
                                 ) : (
-                                    <>🔍 Analyze My Tabs</>
+                                    <>ðŸ” Analyze My Tabs</>
                                 )}
                             </button>
 
@@ -307,7 +336,7 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
                                     onClick={handleGoogleLogin}
                                     className="flex-1 py-3 rounded-xl border border-[#ffffff33] text-[#ffffffcc] font-medium hover:bg-[#ffffff11] transition-all text-sm flex items-center justify-center gap-2"
                                 >
-                                    🔑 Connect Google Workspace
+                                    ðŸ”‘ Connect Google Workspace
                                 </button>
                             </div>
                         </div>
@@ -338,7 +367,7 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2 flex-wrap">
                                                         <h3 className="text-[#ffffffcc] font-semibold truncate">
-                                                            {cluster.cluster_name}
+                                                            {cluster.title}
                                                         </h3>
                                                         <span
                                                             className="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
@@ -347,11 +376,21 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
                                                             {config.label}
                                                         </span>
                                                     </div>
-                                                    <p className="text-[#ffffff80] text-xs mt-1 truncate">{cluster.summary}</p>
-                                                    <p className="text-[#ffffff60] text-xs">{cluster.tabs.length} tabs</p>
+                                                    <p className="text-[#ffffff80] text-xs mt-1">{cluster.summary}</p>
+                                                    {cluster.keywords?.length ? (
+                                                        <p className="text-[#9CA3AF] text-[11px] mt-1">
+                                                            {cluster.keywords.slice(0, 4).join(" • ")}
+                                                        </p>
+                                                    ) : null}
+                                                    {cluster.representative_tabs?.length ? (
+                                                        <p className="text-[#6B7280] text-[11px] mt-1">
+                                                            {cluster.representative_tabs.slice(0, 2).join(" | ")}
+                                                        </p>
+                                                    ) : null}
+                                                    <p className="text-[#ffffff60] text-xs mt-1">{cluster.tab_count ?? cluster.tabs.length} tabs</p>
                                                 </div>
                                                 {isSelected && (
-                                                    <span className="text-[#6375c5] text-lg flex-shrink-0">✓</span>
+                                                    <span className="text-[#6375c5] text-lg flex-shrink-0">âœ“</span>
                                                 )}
                                             </div>
                                         </button>
@@ -362,7 +401,7 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
                             {/* Other option */}
                             <div className="border-t border-[#ffffff1a] pt-4">
                                 <p className="text-[#ffffff99] text-sm mb-2">
-                                    📝 Or type what you need:
+                                    ðŸ“ Or type what you need:
                                 </p>
                                 <textarea
                                     value={customPrompt}
@@ -378,14 +417,14 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
                                     onClick={handleReset}
                                     className="flex-1 py-3 rounded-xl border border-[#ffffff33] text-[#ffffffcc] font-medium hover:bg-[#ffffff11] transition-all text-sm"
                                 >
-                                    ← Back
+                                    â† Back
                                 </button>
                                 <button
                                     onClick={handleSelectDomain}
                                     disabled={loading || (selectedCluster === null && !customPrompt.trim())}
                                     className="flex-1 py-3 rounded-xl bg-gradient-to-r from-[#6375c5] to-[#8B5CF6] text-white font-semibold hover:opacity-90 disabled:opacity-50 transition-all text-sm"
                                 >
-                                    {loading ? "Processing..." : "Continue →"}
+                                    {loading ? "Processing..." : "Continue â†’"}
                                 </button>
                             </div>
                         </div>
@@ -395,7 +434,7 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
                     {step === "result" && domainResult && (
                         <div className="space-y-4 text-center">
                             <div className="text-5xl mb-2">
-                                {DOMAIN_CONFIG[domainResult.domain]?.icon || "📋"}
+                                {DOMAIN_CONFIG[domainResult.domain]?.icon || "ðŸ“‹"}
                             </div>
 
                             <h3 className="text-[#ffffffcc] text-xl font-semibold">
@@ -413,14 +452,14 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
                                     onClick={handleReset}
                                     className="flex-1 py-3 rounded-xl border border-[#ffffff33] text-[#ffffffcc] font-medium hover:bg-[#ffffff11] transition-all text-sm"
                                 >
-                                    ← Start Over
+                                    â† Start Over
                                 </button>
                                 <button
                                     onClick={handleGenerateDashboard}
                                     disabled={loading}
                                     className="flex-1 py-3 rounded-xl bg-gradient-to-r from-[#10B981] to-[#06B6D4] text-white font-semibold hover:opacity-90 disabled:opacity-50 transition-all text-sm"
                                 >
-                                    {loading ? "Generating..." : "🚀 Generate Dashboard"}
+                                    {loading ? "Generating..." : "ðŸš€ Generate Dashboard"}
                                 </button>
                             </div>
                         </div>
@@ -430,51 +469,35 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
                     {step === "dashboard" && dashboardConfig && (
                         <div className="space-y-4">
                             <div className="text-center">
-                                <div className="text-5xl mb-2">✨</div>
+                                <div className="text-5xl mb-2">âœ¨</div>
                                 <h3 className="text-[#ffffffcc] text-xl font-semibold">
                                     Dashboard Ready!
                                 </h3>
                                 <p className="text-[#ffffff80] text-sm">
-                                    Template: {dashboardConfig.selected_template}
+                                    Template: {dashboardConfig.template}
                                 </p>
                             </div>
 
-                            {dashboardConfig.sandbox_embed_url && (
-                                <div className="w-full h-[400px] border border-[#ffffff1a] rounded-xl overflow-hidden mb-4">
-                                    <iframe
-                                        src={dashboardConfig.sandbox_embed_url}
-                                        style={{ width: '100%', height: '100%', border: 0 }}
-                                        title="Dashboard Preview"
-                                        allow="accelerometer; ambient-light-sensor; camera; encrypted-media; geolocation; gyroscope; hid; microphone; midi; payment; usb; vr; xr-spatial-tracking"
-                                        sandbox="allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"
-                                    />
-                                </div>
-                            )}
-
-                            {/* Dashboard Data Preview */}
+                                                        {/* Dashboard Data Preview */}
                             <div className="bg-[#1a1a2e] rounded-xl p-4">
-                                <p className="text-[#ffffff60] text-xs mb-2">Generated UI Props:</p>
+                                <p className="text-[#ffffff60] text-xs mb-2">Generated Dashboard Data:</p>
                                 <pre className="text-[#10B981] text-xs overflow-auto max-h-40">
-                                    {JSON.stringify(dashboardConfig.ui_props, null, 2)}
+                                    {JSON.stringify(dashboardConfig.dashboard, null, 2)}
                                 </pre>
                             </div>
 
                             <button
-                                onClick={() => {
-                                    if (dashboardConfig.sandbox_embed_url) {
-                                        window.open(dashboardConfig.sandbox_embed_url, '_blank');
-                                    }
-                                }}
+                                onClick={openDashboardPage}
                                 className="w-full py-4 rounded-xl bg-gradient-to-r from-[#10B981] to-[#06B6D4] text-white font-bold hover:opacity-90 transition-all flex items-center justify-center gap-2"
                             >
-                                🚀 Open CodeSandbox
+                                Open Full Dashboard
                             </button>
 
                             <button
                                 onClick={handleReset}
                                 className="w-full py-3 rounded-xl border border-[#ffffff33] text-[#ffffffcc] font-medium hover:bg-[#ffffff11] transition-all text-sm"
                             >
-                                ← Generate Another
+                                â† Generate Another
                             </button>
                         </div>
                     )}
@@ -485,4 +508,9 @@ export const ClusterSelector: React.FC<ClusterSelectorProps> = ({
 };
 
 export default ClusterSelector;
+
+
+
+
+
 

@@ -1,0 +1,50 @@
+﻿:root {
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+body,
+html,
+#root {
+  margin: 0;
+  width: 100%;
+  min-height: 100vh;
+  background-color: #020617; /* Slate 950 fallback */
+  color: #e2e8f0;
+}
+
+/* Hide scrollbar for MediaCarousel but keep functionality */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.dash-loading,
+.dash-error {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: 100vh;
+  color: #cbd5e1;
+  background-color: #020617;
+}
+
+.dash-error h2 {
+  margin: 0 0 12px;
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.dash-error p {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+  padding: 12px 24px;
+  border-radius: 8px;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}

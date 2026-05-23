@@ -1,44 +1,55 @@
-# backend/main.py - Successfully configured with Google OAuth and Figma-to-React generation
+﻿import os
 import sys
-import os
+from pathlib import Path
 
-# Load environment variables from .env file FIRST
 from dotenv import load_dotenv
-load_dotenv()
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from langchain_groq import ChatGroq
 
-# Add the current directory to sys.path to ensure modules like 'domains' and 'mcp_tools' can be imported
-current_dir = os.path.dirname(os.path.abspath(__file__))
-if current_dir not in sys.path:
-    sys.path.append(current_dir)
+current_dir = Path(__file__).resolve().parent
+load_dotenv(current_dir / ".env")
 
-from langraph.api_endpoint import router
+if str(current_dir) not in sys.path:
+    sys.path.append(str(current_dir))
+
+from langraph.api_endpoint import router  # noqa: E402
+
+
+def validate_env() -> None:
+    optional_keys = ["GROQ_API_KEY", "GEMINI_API_KEY", "TAVILY_API_KEY", "RAPIDAPI_KEY"]
+    print("[startup] validating environment...")
+    configured = [k for k in optional_keys if os.getenv(k)]
+    for key in optional_keys:
+        if os.getenv(key):
+            print(f"[startup] {key}: configured")
+        else:
+            print(f"[startup] {key}: missing")
+
+    if not configured:
+        print("[startup] warning: no LLM provider key configured. Deterministic fallback mode only.")
+
+
+validate_env()
 
 app = FastAPI(title="Disco Dashboard API")
 
-# Enable CORS for the Chrome Extension
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # In production, restrict this to your extension ID
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include the dashboard generation router
 app.include_router(router)
+
 
 @app.get("/")
 async def root():
-    return {
-        "status": "online",
-        "message": "Disco Dashboard Backend is running",
-        "version": "2.0.0"
-    }
+    return {"status": "online", "message": "Disco Dashboard Backend is running", "version": "3.0.0"}
+
 
 if __name__ == "__main__":
     import uvicorn
-    print("🚀 Starting Disco Dashboard Server...")
-    uvicorn.run(app, host="0.0.0.0", port=8083)
+
+    print("Starting Disco Dashboard Server on http://127.0.0.1:8000")
+    uvicorn.run(app, host="0.0.0.0", port=8000)

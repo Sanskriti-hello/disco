@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import fallbackData from './data.json';
+import './styles.css';
 
 // ✅ Read from runtime-injected data (populated by backend)
 // Falls back to imported data.json for local development
 const data = (window as any).__DASHBOARD_DATA__ || fallbackData;
-import './styles.css';
 
 export default function App() {
   const [expanded, setExpanded] = useState<{ [key: number]: boolean }>({});
